@@ -64,13 +64,13 @@ function PortfolioMapPage() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<"no-key" | "invalid-key" | "no-internet" | null>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
-  const [mapsApiKey, setMapsApiKey] = useState<string>(localStorage.getItem("wb-maps-api-key") || "");
+  const [mapsApiKey, setMapsApiKey] = useState<string>("");
   const markersRef = useRef<any[]>([]);
 
   // Sync API key from localStorage if set after component mount
   useEffect(() => {
-    if (!mapsApiKey) {
-      const storedKey = localStorage.getItem("wb-maps-api-key") || "";
+    if (typeof window !== "undefined") {
+      const storedKey = window.localStorage.getItem("wb-maps-api-key") || "";
       if (storedKey) setMapsApiKey(storedKey);
     }
   }, []);
