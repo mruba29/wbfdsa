@@ -78,15 +78,14 @@ export function attachDexieHooks() {
 
     db.table(tableName).hook("updating", function (mods, primKey, obj, trans) {
       if (window.__DISABLE_SYNC_HOOKS__) return;
-      // Merge mods with obj to send full update or just mods
       googleSheetsService
-        .remoteUpdate(tableName, primKey, { ...obj, ...mods })
+        .remoteUpdate(tableName, primKey as string | number, { ...obj, ...mods })
         .catch((e) => console.error(e));
     });
 
     db.table(tableName).hook("deleting", function (primKey, obj, trans) {
       if (window.__DISABLE_SYNC_HOOKS__) return;
-      googleSheetsService.remoteDelete(tableName, primKey).catch((e) => console.error(e));
+      googleSheetsService.remoteDelete(tableName, primKey as string | number).catch((e) => console.error(e));
     });
   });
 }

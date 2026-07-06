@@ -185,7 +185,7 @@ function FloorPlansPage() {
     const increase = (simulationTime / 30) * 5;
     const newScore = Math.min(100, Math.round(baseVuln + increase));
     
-    let riskCategory: RiskLevel = "SAFE";
+    let riskCategory: any = "LOW";
     if (newScore > 75) riskCategory = "CRITICAL";
     else if (newScore > 55) riskCategory = "HIGH";
     else if (newScore > 35) riskCategory = "MEDIUM";
@@ -348,7 +348,7 @@ function FloorPlansPage() {
     // Auto-open info window
     infoWindow.open(floorMapInstance, marker);
 
-    floorMarkerRef.current = marker;
+    floorMapMarkerRef.current = marker;
   }, [floorMapInstance, selectedBuilding, floor]);
 
   // Integration settings state
