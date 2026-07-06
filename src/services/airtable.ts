@@ -230,6 +230,9 @@ export const airtableService = {
           lifts: Number(fields.lifts),
           maxOccupancy: Number(fields.maxOccupancy),
           currentOccupancy: Number(fields.currentOccupancy),
+          roomNames: fields.roomNames ? JSON.parse(fields.roomNames) : undefined,
+          roomBoundaries: fields.roomBoundaries ? JSON.parse(fields.roomBoundaries) : undefined,
+          cadElements: fields.cadElements ? JSON.parse(fields.cadElements) : undefined,
         },
         drawing: fields.drawingName
           ? {
@@ -307,6 +310,9 @@ export const airtableService = {
       distanceToStaircase: floorData.stats.distanceToStaircase,
       staircases: floorData.stats.staircases,
       lifts: floorData.stats.lifts,
+      roomNames: floorData.stats.roomNames ? JSON.stringify(floorData.stats.roomNames) : "",
+      roomBoundaries: floorData.stats.roomBoundaries ? JSON.stringify(floorData.stats.roomBoundaries) : "",
+      cadElements: floorData.stats.cadElements ? JSON.stringify(floorData.stats.cadElements) : "",
       drawingName: floorData.drawing?.name || "",
       drawingUrl: floorData.drawing?.url || "",
       drawingType: floorData.drawing?.type || "",

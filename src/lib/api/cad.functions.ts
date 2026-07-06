@@ -86,6 +86,20 @@ export const extractCADObjectsFn = createServerFn({ method: "POST" })
       const y = 5 + row * 42;
       const distSt = Math.round(5 + ((seed * (i + 1)) % 30));
       const distLift = Math.round(8 + ((seed * (i + 2)) % 35));
+      const distExit = Math.round(4 + ((seed * (i + 3)) % 25));
+      
+      const safePath = [
+        { x: x + 14, y: y + 17 },
+        { x: x + 14, y: 50 },
+        { x: x < 50 ? 5 : 95, y: 50 }
+      ];
+      
+      const alternatePath = [
+        { x: x + 14, y: y + 17 },
+        { x: 50, y: y + 17 },
+        { x: 50, y: y < 50 ? 5 : 95 }
+      ];
+
       return {
         id: `room-${i + 1}`,
         name,
@@ -95,6 +109,9 @@ export const extractCADObjectsFn = createServerFn({ method: "POST" })
         h: 35,
         distanceToStaircase: distSt,
         distanceToLift: distLift,
+        distanceToEmergencyExit: distExit,
+        safePath,
+        alternatePath,
       };
     });
 
@@ -105,17 +122,44 @@ export const extractCADObjectsFn = createServerFn({ method: "POST" })
       roomBoundaries.reduce((s, r) => s + (r.distanceToLift ?? 0), 0) / roomBoundaries.length,
     );
 
+    const cadElements: any[] = [];
+    
+    // Add Exits
+    const exits = [
+      { id: "e-1", type: "EXIT", x: 2, y: 48, w: 4, h: 4 },
+      { id: "e-2", type: "EXIT", x: 94, y: 48, w: 4, h: 4 },
+      { id: "e-3", type: "EXIT", x: 48, y: 2, w: 4, h: 4 },
+      { id: "e-4", type: "EXIT", x: 48, y: 94, w: 4, h: 4 },
+    ];
+    cadElements.push(...exits.slice(0, Math.floor(2 + (seed % 3))));
+
+    // Add Staircases
+    cadElements.push({ id: "st-1", type: "STAIRCASE", x: 10, y: 10, w: 6, h: 6 });
+    if (seed % 2 === 0) cadElements.push({ id: "st-2", type: "STAIRCASE", x: 84, y: 84, w: 6, h: 6 });
+
+    // Add Lifts
+    cadElements.push({ id: "l-1", type: "LIFT", x: 10, y: 18, w: 5, h: 5 });
+    if (seed % 3 === 0) cadElements.push({ id: "l-2", type: "LIFT", x: 85, y: 77, w: 5, h: 5 });
+
+    // Add Doors & Windows based on rooms
+    roomBoundaries.forEach((r, i) => {
+      cadElements.push({ id: `d-${i}`, type: "DOOR", x: r.x + r.w / 2 - 2, y: r.y + r.h - 1, w: 4, h: 2 });
+      cadElements.push({ id: `w-${i}-1`, type: "WINDOW", x: r.x - 1, y: r.y + r.h / 4, w: 2, h: 6 });
+      cadElements.push({ id: `w-${i}-2`, type: "WINDOW", x: r.x + r.w - 1, y: r.y + r.h / 4, w: 2, h: 6 });
+    });
+
     return {
-      doors: Math.floor(10 + (seed % 40)),
-      windows: Math.floor(5 + (seed % 30)),
-      directExits: Math.floor(2 + (seed % 4)),
-      emergencyExits: Math.floor(1 + (seed % 3)),
-      staircases: Math.floor(1 + (seed % 3)),
-      lifts: Math.floor(2 + (seed % 4)),
+      doors: cadElements.filter((c) => c.type === "DOOR").length,
+      windows: cadElements.filter((c) => c.type === "WINDOW").length,
+      directExits: cadElements.filter((c) => c.type === "EXIT").length,
+      emergencyExits: 1,
+      staircases: cadElements.filter((c) => c.type === "STAIRCASE").length,
+      lifts: cadElements.filter((c) => c.type === "LIFT").length,
       distanceToStaircase: `${avgStairDist} meters`,
       distanceToLift: `${avgLiftDist} meters`,
       roomNames,
       roomBoundaries,
+      cadElements,
     };
   });
 

@@ -7,6 +7,22 @@ export interface FloorRisk {
   overallFireRisk: RiskLevelType;
 }
 
+export type CADElementType = "DOOR" | "WINDOW" | "STAIRCASE" | "LIFT" | "EXIT";
+
+export interface CADElement {
+  id: string;
+  type: CADElementType;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface PathNode {
+  x: number;
+  y: number;
+}
+
 export interface RoomBoundary {
   id: string;
   name: string;
@@ -16,6 +32,9 @@ export interface RoomBoundary {
   h: number;
   distanceToStaircase?: number; // metres
   distanceToLift?: number; // metres
+  distanceToEmergencyExit?: number; // metres
+  safePath?: PathNode[];
+  alternatePath?: PathNode[];
 }
 
 export interface FloorStatistics {
@@ -32,6 +51,7 @@ export interface FloorStatistics {
   // CAD-extracted room data
   roomNames?: string[];
   roomBoundaries?: RoomBoundary[];
+  cadElements?: CADElement[];
 }
 
 export interface FloorVulnerability {
