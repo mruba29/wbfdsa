@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Layers,
   MapPin,
+  MapPinOff,
   ShieldAlert,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
@@ -23,6 +24,7 @@ import { FloorStatistics } from "@/components/FloorStatistics";
 import { VulnerabilityDashboard } from "@/components/VulnerabilityDashboard";
 import { EvacuationPriority } from "@/components/EvacuationPriority";
 import { FloorInfoPanel } from "@/components/FloorInfoPanel";
+import { FloorSimulationPanel } from "@/components/FloorSimulationPanel";
 import { UploadCAD } from "@/components/UploadCAD";
 import { CADOverlay } from "@/components/CADOverlay";
 import { FloorPlan } from "@/components/floor-plan";
@@ -90,6 +92,7 @@ function FloorPlansPage() {
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [zoom, setZoom] = useState(1);
   const [cadVisible, setCadVisible] = useState(true);
+  const [simulationTime, setSimulationTime] = useState(0);
   const [heatmapMode, setHeatmapMode] = useState<"NONE" | "OCCUPANCY" | "FIRE_RISK" | "EVACUATION">(
     "OCCUPANCY",
   );
@@ -102,8 +105,9 @@ function FloorPlansPage() {
   // Google Map state
   const floorMapRef = useRef<HTMLDivElement>(null);
   const [floorMapReady, setFloorMapReady] = useState(false);
+  const [mapError, setMapError] = useState<"no-key" | "invalid-key" | "no-internet" | "no-location" | null>(null);
   const [floorMapInstance, setFloorMapInstance] = useState<any>(null);
-  const floorMarkerRef = useRef<any>(null);
+  const floorMapMarkerRef = useRef<any>(null);
   const [cadOpacity, setCadOpacity] = useState(100);
 
   // Calculate occupants on this specific floor level
@@ -170,43 +174,74 @@ function FloorPlansPage() {
     }));
   }, [floorOccupants, HOURS_2H]);
 
-  // Hook for floor details, statistics, and drawings fetched from Google Sheets/Airtable
   const buildingIdStr = bId ? String(bId) : null;
   const { floorData, loading, uploadCADFile, deleteCADFile } = useFloorData(buildingIdStr, fLevel);
 
-  // Load Google Maps script dynamically (reuse if already loaded by portfolio-map)
+  // Compute dynamic vulnerability based on simulation time
+  const dynamicVulnerability = useMemo(() => {
+    if (!floorData || !floorData.vulnerability) return undefined;
+    const baseVuln = floorData.vulnerability.overallVulnerability ?? 0;
+    // Increase vulnerability by 5 points for every 30 seconds
+    const increase = (simulationTime / 30) * 5;
+    const newScore = Math.min(100, Math.round(baseVuln + increase));
+    
+    let riskCategory: RiskLevel = "SAFE";
+    if (newScore > 75) riskCategory = "CRITICAL";
+    else if (newScore > 55) riskCategory = "HIGH";
+    else if (newScore > 35) riskCategory = "MEDIUM";
+    else if (newScore > 15) riskCategory = "LOW";
+
+    return {
+      ...floorData.vulnerability,
+      overallVulnerability: newScore,
+      riskCategory,
+    };
+  }, [floorData, simulationTime]);
+
+  const dynamicFloorData = useMemo(() => {
+    if (!floorData) return null;
+    return {
+      ...floorData,
+      vulnerability: dynamicVulnerability
+    };
+  }, [floorData, dynamicVulnerability]);
+
+  // Load Google Maps API
   useEffect(() => {
     const win = window as any;
-    if (win.google && win.google.maps) {
-      setFloorMapReady(true);
+    const apiKey = localStorage.getItem("wb-maps-api-key") || "";
+    if (!apiKey) {
+      setFloorMapReady(false);
+      setMapError("no-key");
       return;
     }
+    
+    win.gm_authFailure = () => {
+      setMapError("invalid-key");
+      setFloorMapReady(false);
+    };
 
-    // Check if script is already loading from another page
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      const checkReady = setInterval(() => {
-        if ((window as any).google?.maps) {
-          setFloorMapReady(true);
-          clearInterval(checkReady);
-        }
-      }, 100);
-      return () => clearInterval(checkReady);
+    if (win.google && win.google.maps) {
+      setFloorMapReady(true);
+      setMapError(null);
+      return;
     }
 
     win.initFloorGoogleMap = () => {
       setFloorMapReady(true);
+      setMapError(null);
     };
 
-    const apiKey = localStorage.getItem("wb-maps-api-key") || "";
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initFloorGoogleMap`;
     script.async = true;
     script.defer = true;
+    script.onerror = () => setMapError("no-internet");
     document.head.appendChild(script);
 
     return () => {
       win.initFloorGoogleMap = undefined;
+      win.gm_authFailure = undefined;
     };
   }, []);
 
@@ -244,38 +279,43 @@ function FloorPlansPage() {
       center,
       zoom: 15,
       styles: darkStyles,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
+      mapTypeControl: true,
+      streetViewControl: true,
+      fullscreenControl: true,
       zoomControl: true,
-      zoomControlOptions: {
-        position: win.google.maps.ControlPosition.RIGHT_BOTTOM,
+      mapTypeControlOptions: {
+         mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain']
       },
     });
 
     setFloorMapInstance(map);
+  }, [floorMapReady]);
 
-    return () => {
-      setFloorMapInstance(null);
-    };
-  }, [floorMapReady, !!floor]);
-
-  // Update marker when selected building changes
+  // Update map center and marker when building changes
   useEffect(() => {
+    if (!floorMapInstance || !selectedBuilding) return;
     const win = window as any;
-    if (!floorMapInstance || !win.google?.maps) return;
 
-    // Remove old marker
-    if (floorMarkerRef.current) {
-      floorMarkerRef.current.setMap(null);
-      floorMarkerRef.current = null;
+    if (!selectedBuilding.latitude || !selectedBuilding.longitude) {
+      setMapError("no-location");
+      if (floorMapMarkerRef.current) floorMapMarkerRef.current.setMap(null);
+      return;
     }
-
-    if (!selectedBuilding?.latitude || !selectedBuilding?.longitude) return;
+    
+    // Clear location error if we have coords
+    if (mapError === "no-location") {
+      setMapError(null);
+    }
 
     const latLng = { lat: selectedBuilding.latitude, lng: selectedBuilding.longitude };
     floorMapInstance.setCenter(latLng);
     floorMapInstance.setZoom(16);
+
+    // Remove old marker
+    if (floorMapMarkerRef.current) {
+      floorMapMarkerRef.current.setMap(null);
+      floorMapMarkerRef.current = null;
+    }
 
     const marker = new win.google.maps.Marker({
       position: latLng,
@@ -564,7 +604,7 @@ function FloorPlansPage() {
           {/* Evacuation Priority */}
           <EvacuationPriority
             floors={floors ?? []}
-            currentFloorData={floorData}
+            currentFloorData={dynamicFloorData}
             onSelectFloor={(level) => setFLevel(level)}
             selectedFloorLevel={fLevel}
           />
@@ -587,13 +627,24 @@ function FloorPlansPage() {
               {floorData && (
                 <>
                   <RiskCards
-                    floorRisk={floorData.risks.floorRisk}
+                    floorRisk={dynamicVulnerability?.riskCategory ?? floorData.risks.floorRisk}
                     occupancyRisk={floorData.risks.occupancyRisk}
                     individualRisk={floorData.risks.individualRisk}
                     overallFireRisk={floorData.risks.overallFireRisk}
                   />
-                  <FloorStatistics stats={floorData.stats} />
-                  <VulnerabilityDashboard vulnerability={floorData.vulnerability} />
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4">
+                    <div className="space-y-4">
+                      <FloorStatistics stats={floorData.stats} />
+                      <VulnerabilityDashboard vulnerability={dynamicVulnerability} />
+                    </div>
+                    <FloorSimulationPanel 
+                      simulationTime={simulationTime}
+                      onTimeChange={setSimulationTime}
+                      stats={floorData.stats}
+                      vulnerability={dynamicVulnerability}
+                      floorRisk={dynamicVulnerability?.riskCategory}
+                    />
+                  </div>
                 </>
               )}
 
@@ -708,6 +759,9 @@ function FloorPlansPage() {
                       onZoneClick={setSelectedZone}
                       selectedZoneId={selectedZone?.id ?? null}
                       transparentBackground={!!floorData?.drawing && cadVisible}
+                      cadElements={floorData?.stats?.cadElements}
+                      roomBoundaries={floorData?.stats?.roomBoundaries}
+                      simulationTime={simulationTime}
                     />
                   </div>
                 </div>
@@ -733,13 +787,39 @@ function FloorPlansPage() {
                   )}
                 </div>
                 <div className="relative h-[300px] w-full bg-secondary/20">
-                  <div ref={floorMapRef} className="h-full w-full" />
-                  {!localStorage.getItem("wb-maps-api-key") && (
-                    <div className="absolute top-2 left-2 z-10 bg-black/85 text-yellow-500 border border-yellow-500/20 px-2.5 py-1.5 rounded text-[10px] font-medium shadow-md flex items-center gap-1.5">
-                      <ShieldAlert className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
-                      <span>Google Maps running in Demo Mode. Set API key in Settings.</span>
-                    </div>
-                  )}
+                  <div ref={floorMapRef} className="h-full w-full transition-opacity duration-300 ease-in-out" style={{ opacity: floorMapReady && !mapError ? 1 : 0 }} />
+                   {mapError === "no-key" && (
+                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                       <div className="bg-black/85 text-yellow-500 border border-yellow-500/20 px-4 py-3 rounded-lg text-sm font-medium shadow-xl flex items-center gap-2">
+                         <ShieldAlert className="h-5 w-5 text-yellow-500 shrink-0" />
+                         <span>Google Maps API Key not configured.</span>
+                       </div>
+                     </div>
+                   )}
+                   {mapError === "invalid-key" && (
+                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                       <div className="bg-risk-red/10 text-risk-red border border-risk-red/20 px-4 py-3 rounded-lg text-sm font-medium shadow-xl flex items-center gap-2">
+                         <ShieldAlert className="h-5 w-5 shrink-0" />
+                         <span>Invalid Google Maps API Key.</span>
+                       </div>
+                     </div>
+                   )}
+                   {mapError === "no-internet" && (
+                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                       <div className="bg-secondary text-risk-red border border-border px-4 py-3 rounded-lg text-sm font-medium shadow-xl flex items-center gap-2">
+                         <ShieldAlert className="h-5 w-5 shrink-0" />
+                         <span>Unable to load Google Maps.</span>
+                       </div>
+                     </div>
+                   )}
+                   {mapError === "no-location" && (
+                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                       <div className="bg-secondary text-muted-foreground border border-border px-4 py-3 rounded-lg text-sm font-medium shadow-xl flex items-center gap-2">
+                         <MapPinOff className="h-5 w-5 shrink-0" />
+                         <span>Building location unavailable.</span>
+                       </div>
+                     </div>
+                   )}
                 </div>
               </div>
 

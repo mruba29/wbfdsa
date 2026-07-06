@@ -62,8 +62,18 @@ function PortfolioMapPage() {
   // Google Map states
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<"no-key" | "invalid-key" | "no-internet" | null>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
+  const [mapsApiKey, setMapsApiKey] = useState<string>(localStorage.getItem("wb-maps-api-key") || "");
   const markersRef = useRef<any[]>([]);
+
+  // Sync API key from localStorage if set after component mount
+  useEffect(() => {
+    if (!mapsApiKey) {
+      const storedKey = localStorage.getItem("wb-maps-api-key") || "";
+      if (storedKey) setMapsApiKey(storedKey);
+    }
+  }, []);
 
   // Filter buildings by customer
   const customerBuildings = (buildings ?? []).filter((b) => {
@@ -145,31 +155,49 @@ function PortfolioMapPage() {
     }
   };
 
-  // Load Google Maps script dynamically
+  // Load Google Maps script dynamically when API key is available
   useEffect(() => {
     const win = window as any;
+    if (!mapsApiKey) {
+      // No API key – keep map in demo mode
+      setMapReady(false);
+      setMapError("no-key");
+      return;
+    }
+    
+    // Auth failure callback (Google Maps API calls this if key is invalid)
+    win.gm_authFailure = () => {
+      setMapError("invalid-key");
+      setMapReady(false);
+    };
+
     if (win.google && win.google.maps) {
       setMapReady(true);
+      setMapError(null);
       return;
     }
 
     win.initGoogleMap = () => {
       setMapReady(true);
+      setMapError(null);
     };
 
-    const apiKey = localStorage.getItem("wb-maps-api-key") || "";
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initGoogleMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&callback=initGoogleMap`;
     script.async = true;
     script.defer = true;
+    script.onerror = () => setMapError("no-internet");
     document.head.appendChild(script);
 
     return () => {
-      // Clean up callback to avoid memory leaks
+      // Clean up script and callback
       win.initGoogleMap = undefined;
+      win.gm_authFailure = undefined;
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
     };
-  }, []);
-
+  }, [mapsApiKey]);
   // Initialize Map Instance
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
@@ -241,10 +269,13 @@ function PortfolioMapPage() {
       center: { lat: 21.0, lng: 78.0 }, // Center of India
       zoom: 5,
       styles: darkStyles,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
+      mapTypeControl: true,
+      streetViewControl: true,
+      fullscreenControl: true,
       zoomControl: true,
+      mapTypeControlOptions: {
+         mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain']
+      },
       zoomControlOptions: {
         position: win.google.maps.ControlPosition.RIGHT_BOTTOM,
       },
@@ -548,13 +579,31 @@ function PortfolioMapPage() {
 
             {/* Google Map Panel */}
             <div className="relative h-full w-full bg-secondary/20">
-              <div ref={mapRef} className="h-full w-full" />
-              {!localStorage.getItem("wb-maps-api-key") && (
-                <div className="absolute top-2 left-2 z-10 bg-black/85 text-yellow-500 border border-yellow-500/20 px-2.5 py-1.5 rounded text-[10px] font-medium shadow-md flex items-center gap-1.5">
-                  <ShieldAlert className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
-                  <span>Google Maps running in Demo Mode. Set API key in Settings.</span>
-                </div>
-              )}
+               <div ref={mapRef} className="h-full w-full transition-opacity duration-300 ease-in-out" style={{ opacity: mapReady ? 1 : 0 }} />
+               {mapError === "no-key" && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                   <div className="bg-black/85 text-yellow-500 border border-yellow-500/20 px-4 py-3 rounded-lg text-sm font-medium shadow-xl flex items-center gap-2">
+                     <ShieldAlert className="h-5 w-5 text-yellow-500 shrink-0" />
+                     <span>Google Maps API Key not configured.</span>
+                   </div>
+                 </div>
+               )}
+               {mapError === "invalid-key" && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                   <div className="bg-risk-red/10 text-risk-red border border-risk-red/20 px-4 py-3 rounded-lg text-sm font-medium shadow-xl flex items-center gap-2">
+                     <ShieldAlert className="h-5 w-5 shrink-0" />
+                     <span>Invalid Google Maps API Key.</span>
+                   </div>
+                 </div>
+               )}
+               {mapError === "no-internet" && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                   <div className="bg-secondary text-risk-red border border-border px-4 py-3 rounded-lg text-sm font-medium shadow-xl flex items-center gap-2">
+                     <ShieldAlert className="h-5 w-5 shrink-0" />
+                     <span>Unable to load Google Maps.</span>
+                   </div>
+                 </div>
+               )}
             </div>
           </div>
         </div>
