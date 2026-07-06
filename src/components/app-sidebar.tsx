@@ -63,9 +63,9 @@ export function AppSidebar() {
             <Link
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-300 ease-in-out ${
                 active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
               }`}
             >

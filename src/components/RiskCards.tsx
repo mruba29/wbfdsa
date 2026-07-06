@@ -93,7 +93,7 @@ export function RiskCards({
             key={c.title}
             variants={item}
             whileHover={{ scale: 1.02, translateY: -2 }}
-            className={`rounded-xl border border-border bg-card/60 flex items-center justify-between p-4 border-t-[3px] shadow-sm ${config.border}`}
+            className={`rounded-xl border border-border bg-card/60 backdrop-blur-sm flex items-center justify-between p-4 border-t-[3px] shadow-sm hover:shadow-md transition-shadow duration-300 ease-in-out ${config.border}`}
           >
             <div className="flex flex-col justify-between h-full gap-2">
               <span className="text-[11px] font-semibold text-muted-foreground">{c.title}</span>

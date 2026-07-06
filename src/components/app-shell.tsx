@@ -62,7 +62,7 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <main className="flex-1 min-w-0 p-4 sm:p-6">{children}</main>
+          <main className="flex-1 min-w-0 p-4 sm:p-6 animate-fade-in">{children}</main>
         </div>
       </div>
     </SeedProvider>
