@@ -259,27 +259,27 @@ function Index() {
       }
     >
       {/* HORIZONTAL TABS IN MAIN SCREEN */}
-      <div className="flex border-b border-border mb-5 overflow-x-auto scrollbar-none gap-2 text-xs">
+      <div className="flex border-b border-border mb-6 overflow-x-auto scrollbar-none gap-4 text-xs font-semibold px-2">
         <button
           onClick={() => setActiveTab("executive")}
-          className={`flex items-center gap-2 px-3 py-2.5 font-bold transition-all relative shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-3 transition-all relative shrink-0 rounded-t-lg ${
             activeTab === "executive"
-              ? "text-primary border-b-2 border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
+              ? "text-primary bg-primary/10 border-b-2 border-primary"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
           }`}
         >
-          <LayoutDashboard className="h-3.5 w-3.5" />
+          <LayoutDashboard className="h-4 w-4" />
           <span>Executive Dashboard</span>
         </button>
         <button
           onClick={() => setActiveTab("vulnerability")}
-          className={`flex items-center gap-2 px-3 py-2.5 font-bold transition-all relative shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-3 transition-all relative shrink-0 rounded-t-lg ${
             activeTab === "vulnerability"
-              ? "text-primary border-b-2 border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
+              ? "text-primary bg-primary/10 border-b-2 border-primary"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
           }`}
         >
-          <ShieldAlert className="h-3.5 w-3.5" />
+          <ShieldAlert className="h-4 w-4" />
           <span>Vulnerability Assessment</span>
         </button>
       </div>
@@ -481,9 +481,9 @@ function Index() {
           </div>
 
           {/* Recent Activity */}
-          <div className="rounded-lg border border-border bg-card shadow-sm">
-            <div className="border-b border-border px-4 py-3">
-              <h2 className="text-sm font-semibold flex items-center gap-2">
+          <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-sm overflow-hidden">
+            <div className="border-b border-border/60 px-5 py-4 bg-secondary/30">
+              <h2 className="text-sm font-semibold flex items-center gap-2 uppercase tracking-wider text-muted-foreground">
                 <Activity className="h-4 w-4" /> Recent Activity
               </h2>
             </div>
@@ -657,22 +657,22 @@ function Index() {
           {/* Dual Tables for Floors & Zones */}
           <div className="grid gap-6 lg:grid-cols-2">
             {/* FLVI */}
-            <div className="rounded-lg border border-border bg-card/60 overflow-hidden flex flex-col">
-              <div className="border-b border-border px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground bg-secondary/30">
+            <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl overflow-hidden flex flex-col shadow-sm">
+              <div className="border-b border-border/60 px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/30">
                 Floor-Level Index (FLVI)
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[300px]">
                 <table className="w-full text-sm">
-                  <thead className="bg-secondary text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <thead className="bg-secondary/50 text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0 backdrop-blur-md z-10 shadow-sm">
                     <tr>
-                      <th className="px-3 py-2 text-left">Level</th>
-                      <th className="px-3 py-2 text-right">Occupancy</th>
-                      <th className="px-3 py-2 text-right">Exits Available</th>
-                      <th className="px-3 py-2 text-right">FLVI Score</th>
-                      <th className="px-3 py-2 text-left">Indicator</th>
+                      <th className="px-4 py-3 text-left">Level</th>
+                      <th className="px-4 py-3 text-right">Occupancy</th>
+                      <th className="px-4 py-3 text-right">Exits Available</th>
+                      <th className="px-4 py-3 text-right">FLVI Score</th>
+                      <th className="px-4 py-3 text-left">Indicator</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/50">
                     {selectedBuildingFloors.map((f) => {
                       const fZones = selectedBuildingZones.filter((z) => z.floorId === f.id);
                       const fOcc = fZones.reduce((s, z) => s + z.occupancy, 0);
@@ -684,20 +684,20 @@ function Index() {
                       const risk = getRiskLabel(score);
 
                       return (
-                        <tr key={f.id} className="hover:bg-secondary/40 transition-colors">
-                          <td className="px-3 py-2 font-mono text-xs font-bold">
+                        <tr key={f.id} className="hover:bg-muted/80 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs font-bold">
                             L{f.level} — {f.name}
                           </td>
-                          <td className="px-3 py-2 text-right font-mono tabular-nums">{fOcc}</td>
-                          <td className="px-3 py-2 text-right font-mono tabular-nums">
+                          <td className="px-4 py-3 text-right font-mono tabular-nums">{fOcc}</td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums">
                             {f.availableExits}/{f.totalExits}
                           </td>
-                          <td className={`px-3 py-2 text-right font-mono font-bold ${risk.color}`}>
+                          <td className={`px-4 py-3 text-right font-mono font-bold ${risk.color}`}>
                             {score}
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold ${risk.bg}/10 ${risk.color} border border-${risk.bg}/20`}
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${risk.bg}/10 ${risk.color} border border-${risk.bg}/20`}
                             >
                               {risk.label}
                             </span>
@@ -721,36 +721,36 @@ function Index() {
             </div>
 
             {/* Zone Rankings */}
-            <div className="rounded-lg border border-border bg-card/60 overflow-hidden flex flex-col">
-              <div className="border-b border-border px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground bg-secondary/30">
+            <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl overflow-hidden flex flex-col shadow-sm">
+              <div className="border-b border-border/60 px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/30">
                 Zone Vulnerability Ranking
               </div>
               <div className="overflow-y-auto max-h-[300px]">
                 <table className="w-full text-sm">
-                  <thead className="bg-secondary text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0">
+                  <thead className="bg-secondary/50 text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0 backdrop-blur-md z-10 shadow-sm">
                     <tr>
-                      <th className="px-3 py-2 text-left">Zone ID</th>
-                      <th className="px-3 py-2 text-left">Floor</th>
-                      <th className="px-3 py-2 text-right">Occupants</th>
-                      <th className="px-3 py-2 text-right">Impact Score</th>
-                      <th className="px-3 py-2 text-left">Risk</th>
+                      <th className="px-4 py-3 text-left">Zone ID</th>
+                      <th className="px-4 py-3 text-left">Floor</th>
+                      <th className="px-4 py-3 text-right">Occupants</th>
+                      <th className="px-4 py-3 text-right">Impact Score</th>
+                      <th className="px-4 py-3 text-left">Risk</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/50">
                     {selectedBuildingImpacts.map((i) => (
-                      <tr key={i.zone.id} className="hover:bg-secondary/40 transition-colors">
-                        <td className="px-3 py-2 font-mono text-xs font-bold">{i.zone.zoneId}</td>
-                        <td className="px-3 py-2 text-xs">Level {i.floor.level}</td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums">
+                      <tr key={i.zone.id} className="hover:bg-muted/80 transition-colors">
+                        <td className="px-4 py-3 font-mono text-xs font-bold">{i.zone.zoneId}</td>
+                        <td className="px-4 py-3 text-xs">Level {i.floor.level}</td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums">
                           {i.zone.occupancy}
                         </td>
                         <td
-                          className="px-3 py-2 text-right font-mono font-bold"
+                          className="px-4 py-3 text-right font-mono font-bold"
                           style={{ color: RISK_COLORS[i.risk] }}
                         >
                           {Math.round(i.breakdown.total * activeBuildingComplianceMultiplier)}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-4 py-3">
                           <RiskBadge level={i.risk} />
                         </td>
                       </tr>
@@ -778,8 +778,8 @@ function Index() {
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <h3 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-2">{title}</h3>
+    <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-5 shadow-sm transition-all hover:shadow-lg">
+      <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-4">{title}</h3>
       {children}
     </div>
   );

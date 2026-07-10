@@ -55,7 +55,7 @@ export function AppSidebar() {
           </div>
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {items.map((item) => {
           const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
           const Icon = item.icon;
@@ -63,10 +63,10 @@ export function AppSidebar() {
             <Link
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-300 ease-in-out ${
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-300 ease-out ${
                 active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-md translate-x-1"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground hover:translate-x-1"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />

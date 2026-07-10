@@ -583,7 +583,7 @@ function BuildingInputPage() {
 
         {/* Main Content */}
         <div className="min-w-0 space-y-4">
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm min-h-[450px]">
+          <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-6 shadow-sm min-h-[450px]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -2054,9 +2054,9 @@ function AdditionalCategoriesTable() {
 // ── Reusable UI Components ─────────────────────────────────────────────────────
 
 const inputClasses =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:border-primary";
+  "flex h-10 w-full rounded-lg border border-input bg-background/50 px-4 py-2 text-sm shadow-sm transition-all duration-300 placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1";
 const selectClasses =
-  "flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:border-primary";
+  "flex h-10 w-full rounded-lg border border-input bg-background/50 px-4 py-2 text-sm shadow-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1";
 const errorInputClasses = "border-risk-red focus-visible:ring-risk-red";
 
 function Input({

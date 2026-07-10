@@ -20,13 +20,17 @@ export function KpiCard({
     success: "text-risk-green",
   }[tone];
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="flex flex-col justify-between rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-5 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-        <Icon className={`h-4 w-4 ${toneClass}`} />
+        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground group-hover:text-foreground transition-colors">{label}</div>
+        <div className={`p-2 rounded-lg bg-background/50 backdrop-blur-sm border border-border/50 shadow-inner group-hover:bg-background transition-colors`}>
+          <Icon className={`h-5 w-5 ${toneClass}`} />
+        </div>
       </div>
-      <div className={`mt-2 text-2xl font-bold tabular-nums ${toneClass}`}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+      <div className="mt-4">
+        <div className={`text-3xl font-extrabold tabular-nums tracking-tight ${toneClass}`}>{value}</div>
+        {hint && <div className="mt-1.5 text-xs text-muted-foreground/80 font-medium">{hint}</div>}
+      </div>
     </div>
   );
 }

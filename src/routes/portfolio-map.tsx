@@ -469,9 +469,9 @@ function PortfolioMapPage() {
             />
           </div>
 
-          <div className="flex-1 min-h-0 grid lg:grid-cols-[320px_1fr] border border-border rounded-lg overflow-hidden bg-card">
+          <div className="flex-1 min-h-0 grid lg:grid-cols-[320px_1fr] border border-border/60 rounded-2xl overflow-hidden bg-card/80 backdrop-blur-xl shadow-sm">
             {/* Left sidebar directory */}
-            <div className="flex flex-col min-h-0 border-r border-border bg-card/50">
+            <div className="flex flex-col min-h-0 border-r border-border/60 bg-card/50">
               {/* Search and Filters */}
               <div className="p-3 border-b border-border space-y-2">
                 <div className="relative">
@@ -624,16 +624,16 @@ function KpiItem({
   color: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between shadow-sm">
+    <div className="group rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md hover:border-primary/40 transition-all duration-300 ease-in-out">
       <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div className="text-lg font-extrabold truncate mt-0.5">{value}</div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground group-hover:text-foreground transition-colors">{label}</div>
+        <div className="text-xl font-bold truncate mt-1">{value}</div>
       </div>
       <div
-        className="h-8 w-8 rounded-md flex items-center justify-center bg-secondary/60 text-muted-foreground shrink-0 ml-2"
+        className="h-10 w-10 rounded-xl flex items-center justify-center bg-background/50 border border-border/50 text-muted-foreground shrink-0 ml-2 group-hover:bg-background shadow-inner transition-colors"
         style={{ color }}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-5 w-5" />
       </div>
     </div>
   );

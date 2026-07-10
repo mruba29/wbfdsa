@@ -428,8 +428,7 @@ function FloorPlansPage() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+            className="mb-4 overflow-hidden rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-sm"
           >
             <div className="p-4 space-y-4 text-sm">
               <div className="flex items-center justify-between border-b border-border pb-2">
@@ -544,8 +543,8 @@ function FloorPlansPage() {
           />
 
           {floor && (
-            <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1.5">
+            <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-5 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground border-b border-border/50 pb-2">
                 Exit Management
               </h4>
               <ExitField
@@ -584,8 +583,8 @@ function FloorPlansPage() {
 
           {/* Upload Widget under selector */}
           {floor && (
-            <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1.5 flex items-center justify-between">
+            <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-5 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground border-b border-border/50 pb-2 flex items-center justify-between">
                 <span>Layout Management</span>
                 {floorData?.drawing && (
                   <span className="text-[9px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded">
@@ -613,7 +612,7 @@ function FloorPlansPage() {
         {/* Right Side Content Pane */}
         <div className="space-y-4 min-w-0">
           {loading ? (
-            <div className="rounded-xl border border-border bg-card p-12 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-12 flex flex-col items-center justify-center min-h-[400px]">
               <div className="relative flex items-center justify-center">
                 <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
@@ -649,8 +648,8 @@ function FloorPlansPage() {
               )}
 
               {/* SVG Floor Plan with CAD Overlay */}
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between rounded-xl border border-border bg-card/40 px-4 py-2.5 gap-2">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl px-5 py-3 gap-3 shadow-sm">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                     <MapIcon className="h-4 w-4 text-primary" />
                     {floor.name} — Level {floor.level}
@@ -736,7 +735,7 @@ function FloorPlansPage() {
                 </div>
 
                 {/* Scaled Container */}
-                <div className="overflow-auto rounded-xl border border-border bg-secondary/20 relative min-h-[400px]">
+                <div className="overflow-auto rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm relative min-h-[400px] shadow-inner">
                   <div
                     style={{
                       transform: `scale(${zoom})`,
@@ -772,9 +771,9 @@ function FloorPlansPage() {
               )}
 
               {/* Google Maps — Building Location */}
-              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-blue-500" /> Building Location
                   </h3>
                   {selectedBuilding && (

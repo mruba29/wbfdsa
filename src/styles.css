@@ -62,40 +62,42 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  /* Emergency Operations Center — dark by default */
-  --background: oklch(0.18 0.015 250);
-  --foreground: oklch(0.97 0.005 250);
-  --card: oklch(0.22 0.018 250);
-  --card-foreground: oklch(0.97 0.005 250);
-  --popover: oklch(0.22 0.018 250);
-  --popover-foreground: oklch(0.97 0.005 250);
-  --primary: oklch(0.65 0.22 28);
-  --primary-foreground: oklch(0.99 0.005 250);
-  --secondary: oklch(0.28 0.02 250);
-  --secondary-foreground: oklch(0.97 0.005 250);
-  --muted: oklch(0.26 0.018 250);
-  --muted-foreground: oklch(0.7 0.02 250);
-  --accent: oklch(0.7 0.18 60);
-  --accent-foreground: oklch(0.15 0.02 250);
-  --destructive: oklch(0.6 0.24 25);
+  --radius: 0.75rem;
+  /* Enterprise Platform - Dark Navy and Professional Blue */
+  --background: oklch(0.15 0.02 245);
+  --foreground: oklch(0.98 0.01 245);
+  --card: oklch(0.18 0.02 245);
+  --card-foreground: oklch(0.98 0.01 245);
+  --popover: oklch(0.18 0.02 245);
+  --popover-foreground: oklch(0.98 0.01 245);
+  --primary: oklch(0.55 0.15 250); /* Professional Tech Blue */
+  --primary-foreground: oklch(0.99 0.01 245);
+  --secondary: oklch(0.22 0.03 245);
+  --secondary-foreground: oklch(0.98 0.01 245);
+  --muted: oklch(0.22 0.03 245);
+  --muted-foreground: oklch(0.75 0.02 245);
+  --accent: oklch(0.55 0.15 250);
+  --accent-foreground: oklch(0.99 0.01 245);
+  --destructive: oklch(0.6 0.24 25); /* Keep red for destructive */
   --destructive-foreground: oklch(0.99 0.005 250);
-  --border: oklch(0.32 0.02 250);
-  --input: oklch(0.3 0.02 250);
-  --ring: oklch(0.65 0.22 28);
-  --chart-1: oklch(0.65 0.24 25);
-  --chart-2: oklch(0.75 0.18 60);
-  --chart-3: oklch(0.82 0.16 95);
-  --chart-4: oklch(0.7 0.15 200);
-  --chart-5: oklch(0.65 0.18 280);
-  --sidebar: oklch(0.15 0.015 250);
+  --border: oklch(0.25 0.03 245);
+  --input: oklch(0.25 0.03 245);
+  --ring: oklch(0.55 0.15 250);
+  --chart-1: oklch(0.55 0.15 250); /* Blue */
+  --chart-2: oklch(0.65 0.12 210); /* Light Blue */
+  --chart-3: oklch(0.85 0.05 250); /* Pale Blue */
+  --chart-4: oklch(0.7 0.1 270); /* Purple-Blue */
+  --chart-5: oklch(0.45 0.1 250); /* Darker Blue */
+  --sidebar: oklch(0.13 0.02 245); /* Deepest Navy */
   --sidebar-foreground: oklch(0.92 0.01 250);
-  --sidebar-primary: oklch(0.65 0.22 28);
-  --sidebar-primary-foreground: oklch(0.99 0.005 250);
-  --sidebar-accent: oklch(0.25 0.02 250);
-  --sidebar-accent-foreground: oklch(0.97 0.005 250);
-  --sidebar-border: oklch(0.28 0.02 250);
-  --sidebar-ring: oklch(0.65 0.22 28);
+  --sidebar-primary: oklch(0.55 0.15 250);
+  --sidebar-primary-foreground: oklch(0.99 0.01 245);
+  --sidebar-accent: oklch(0.2 0.03 245);
+  --sidebar-accent-foreground: oklch(0.98 0.01 245);
+  --sidebar-border: oklch(0.22 0.03 245);
+  --sidebar-ring: oklch(0.55 0.15 250);
+  
+  /* Retain Risk colors as they are core to business logic presentation */
   --risk-red: oklch(0.6 0.25 25);
   --risk-orange: oklch(0.72 0.2 55);
   --risk-yellow: oklch(0.85 0.17 95);
@@ -103,38 +105,39 @@
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  /* Enforce the same dark enterprise theme for dark mode */
+  --background: oklch(0.12 0.02 245);
+  --foreground: oklch(0.98 0.01 245);
+  --card: oklch(0.16 0.02 245);
+  --card-foreground: oklch(0.98 0.01 245);
+  --popover: oklch(0.16 0.02 245);
+  --popover-foreground: oklch(0.98 0.01 245);
+  --primary: oklch(0.55 0.15 250);
+  --primary-foreground: oklch(0.99 0.01 245);
+  --secondary: oklch(0.2 0.03 245);
+  --secondary-foreground: oklch(0.98 0.01 245);
+  --muted: oklch(0.2 0.03 245);
+  --muted-foreground: oklch(0.7 0.02 245);
+  --accent: oklch(0.55 0.15 250);
+  --accent-foreground: oklch(0.99 0.01 245);
+  --destructive: oklch(0.7 0.19 22);
+  --destructive-foreground: oklch(0.98 0.003 247);
+  --border: oklch(0.25 0.03 245);
+  --input: oklch(0.25 0.03 245);
+  --ring: oklch(0.55 0.15 250);
+  --chart-1: oklch(0.55 0.15 250);
+  --chart-2: oklch(0.65 0.12 210);
+  --chart-3: oklch(0.85 0.05 250);
+  --chart-4: oklch(0.7 0.1 270);
+  --chart-5: oklch(0.45 0.1 250);
+  --sidebar: oklch(0.11 0.02 245);
+  --sidebar-foreground: oklch(0.98 0.01 245);
+  --sidebar-primary: oklch(0.55 0.15 250);
+  --sidebar-primary-foreground: oklch(0.98 0.01 245);
+  --sidebar-accent: oklch(0.18 0.03 245);
+  --sidebar-accent-foreground: oklch(0.98 0.01 245);
+  --sidebar-border: oklch(0.2 0.03 245);
+  --sidebar-ring: oklch(0.55 0.15 250);
 }
 
 @theme inline {
@@ -142,6 +145,10 @@
   --color-risk-orange: var(--risk-orange);
   --color-risk-yellow: var(--risk-yellow);
   --color-risk-green: var(--risk-green);
+  
+  /* Additional enterprise typography utilities */
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
 }
 
 @utility input {

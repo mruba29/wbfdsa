@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, Search, Trash2, Pencil, X, AlertTriangle, Shield, Activity } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { db, type Personnel, type SpecialNeedCategory, type IVARiskClass } from "@/lib/db";
@@ -104,6 +105,8 @@ function PersonnelPage() {
   const [editing, setEditing] = useState<Personnel | null>(null);
   const [creating, setCreating] = useState(false);
 
+  console.log("PersonnelPage render. creating:", creating, "editing:", editing);
+
   const filtered = (list ?? []).filter((p) => {
     if (!q) return true;
     const s = q.toLowerCase();
@@ -131,7 +134,10 @@ function PersonnelPage() {
       subtitle={`${list?.length ?? 0} registered · ${specialNeedsCount} special needs`}
       actions={
         <button
-          onClick={() => setCreating(true)}
+          onClick={() => {
+            console.log("Add button clicked!");
+            setCreating(true);
+          }}
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
         >
           <Plus className="h-3.5 w-3.5" /> Add
@@ -268,22 +274,26 @@ function PersonnelPage() {
       </div>
 
       {/* Form modal */}
-      {(creating || editing) && (
-        <PersonnelForm
-          initial={editing ?? EMPTY}
-          onClose={() => {
-            setCreating(false);
-            setEditing(null);
-          }}
-          onSave={async (data) => {
-            const enriched = withIVA(data);
-            if (editing) await db.personnel.update(editing.id!, enriched);
-            else await db.personnel.add(enriched);
-            setCreating(false);
-            setEditing(null);
-          }}
-        />
-      )}
+      {(creating || editing) &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <PersonnelForm
+            key={editing ? editing.id : "new"}
+            initial={editing ?? EMPTY}
+            onClose={() => {
+              setCreating(false);
+              setEditing(null);
+            }}
+            onSave={async (data) => {
+              const enriched = withIVA(data);
+              if (editing) await db.personnel.update(editing.id!, enriched);
+              else await db.personnel.add(enriched);
+              setCreating(false);
+              setEditing(null);
+            }}
+          />,
+          document.body
+        )}
     </AppShell>
   );
 }
@@ -299,6 +309,8 @@ function PersonnelForm({
   onSave: (p: Omit<Personnel, "id">) => void;
 }) {
   const [form, setForm] = useState({ ...initial });
+
+  console.log("PersonnelForm rendering! form:", form);
 
   // Live preview of the IVA result as the user edits
   const preview = computeIndividualVulnerability({
@@ -334,17 +346,20 @@ function PersonnelForm({
             label="Employee ID"
             value={form.employeeId}
             onChange={(v) => setForm({ ...form, employeeId: v })}
+            required
           />
           <TextInput
             label="Name"
             value={form.name}
             onChange={(v) => setForm({ ...form, name: v })}
+            required
           />
           <TextInput
             label="Age"
             type="number"
             value={String(form.age)}
             onChange={(v) => setForm({ ...form, age: +v })}
+            required
           />
 
           <label className="text-xs">
@@ -364,10 +379,13 @@ function PersonnelForm({
             label="Department"
             value={form.department}
             onChange={(v) => setForm({ ...form, department: v })}
+            required
           />
 
           <label className="text-xs">
-            <span className="block text-muted-foreground mb-1">Assigned Floor</span>
+            <span className="block text-muted-foreground mb-1">
+              Assigned Floor <span className="text-risk-red">*</span>
+            </span>
             <input
               className="input w-full"
               type="number"
@@ -499,20 +517,25 @@ function TextInput({
   value,
   onChange,
   type = "text",
+  required = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  required?: boolean;
 }) {
   return (
     <label className="text-xs">
-      <span className="block text-muted-foreground mb-1">{label}</span>
+      <span className="block text-muted-foreground mb-1">
+        {label} {required && <span className="text-risk-red">*</span>}
+      </span>
       <input
         className="input w-full"
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        required={required}
       />
     </label>
   );
