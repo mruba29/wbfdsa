@@ -234,6 +234,14 @@ function pick<T>(arr: T[], i: number) {
 export async function seedIfEmpty() {
   // Always fetch latest data from Google Sheets when the app loads
   await syncFullDatabase();
+  
+  // Fallback: If the database is still empty (e.g. if the Google Sheet URL is broken or missing),
+  // seed the local mock data so the dashboard isn't completely empty.
+  const count = await db.buildings.count();
+  if (count === 0) {
+    console.log("[WB-FDVA] Database is empty after sync attempt. Falling back to local mock data.");
+    await seedInfosystemBuildings();
+  }
 }
 
 interface City {
