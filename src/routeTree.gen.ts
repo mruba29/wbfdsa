@@ -17,6 +17,7 @@ import { Route as PersonnelRouteImport } from './routes/personnel'
 import { Route as OccupancyRouteImport } from './routes/occupancy'
 import { Route as IncidentsRouteImport } from './routes/incidents'
 import { Route as FloorPlansRouteImport } from './routes/floor-plans'
+import { Route as FireInventoryRouteImport } from './routes/fire-inventory'
 import { Route as CommanderRouteImport } from './routes/commander'
 import { Route as BuildingsRouteImport } from './routes/buildings'
 import { Route as BuildingInputRouteImport } from './routes/building-input'
@@ -62,6 +63,11 @@ const FloorPlansRoute = FloorPlansRouteImport.update({
   path: '/floor-plans',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FireInventoryRoute = FireInventoryRouteImport.update({
+  id: '/fire-inventory',
+  path: '/fire-inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommanderRoute = CommanderRouteImport.update({
   id: '/commander',
   path: '/commander',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/building-input': typeof BuildingInputRoute
   '/buildings': typeof BuildingsRoute
   '/commander': typeof CommanderRoute
+  '/fire-inventory': typeof FireInventoryRoute
   '/floor-plans': typeof FloorPlansRoute
   '/incidents': typeof IncidentsRoute
   '/occupancy': typeof OccupancyRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/building-input': typeof BuildingInputRoute
   '/buildings': typeof BuildingsRoute
   '/commander': typeof CommanderRoute
+  '/fire-inventory': typeof FireInventoryRoute
   '/floor-plans': typeof FloorPlansRoute
   '/incidents': typeof IncidentsRoute
   '/occupancy': typeof OccupancyRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/building-input': typeof BuildingInputRoute
   '/buildings': typeof BuildingsRoute
   '/commander': typeof CommanderRoute
+  '/fire-inventory': typeof FireInventoryRoute
   '/floor-plans': typeof FloorPlansRoute
   '/incidents': typeof IncidentsRoute
   '/occupancy': typeof OccupancyRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/building-input'
     | '/buildings'
     | '/commander'
+    | '/fire-inventory'
     | '/floor-plans'
     | '/incidents'
     | '/occupancy'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/building-input'
     | '/buildings'
     | '/commander'
+    | '/fire-inventory'
     | '/floor-plans'
     | '/incidents'
     | '/occupancy'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/building-input'
     | '/buildings'
     | '/commander'
+    | '/fire-inventory'
     | '/floor-plans'
     | '/incidents'
     | '/occupancy'
@@ -176,6 +188,7 @@ export interface RootRouteChildren {
   BuildingInputRoute: typeof BuildingInputRoute
   BuildingsRoute: typeof BuildingsRoute
   CommanderRoute: typeof CommanderRoute
+  FireInventoryRoute: typeof FireInventoryRoute
   FloorPlansRoute: typeof FloorPlansRoute
   IncidentsRoute: typeof IncidentsRoute
   OccupancyRoute: typeof OccupancyRoute
@@ -244,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FloorPlansRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/fire-inventory': {
+      id: '/fire-inventory'
+      path: '/fire-inventory'
+      fullPath: '/fire-inventory'
+      preLoaderRoute: typeof FireInventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/commander': {
       id: '/commander'
       path: '/commander'
@@ -280,6 +300,7 @@ const rootRouteChildren: RootRouteChildren = {
   BuildingInputRoute: BuildingInputRoute,
   BuildingsRoute: BuildingsRoute,
   CommanderRoute: CommanderRoute,
+  FireInventoryRoute: FireInventoryRoute,
   FloorPlansRoute: FloorPlansRoute,
   IncidentsRoute: IncidentsRoute,
   OccupancyRoute: OccupancyRoute,

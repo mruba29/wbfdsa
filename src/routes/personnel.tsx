@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Search, Trash2, Pencil, X, AlertTriangle, Shield, Activity } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, X, AlertTriangle, Shield, Activity, Baby, User, Accessibility, HeartPulse, Heart, Users } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { db, type Personnel, type SpecialNeedCategory, type IVARiskClass } from "@/lib/db";
 import { computeIndividualVulnerability, IVA_RISK_COLORS } from "@/lib/vulnerability";
@@ -101,21 +101,58 @@ const PRIORITY_ICON: Record<number, string> = {
 
 function PersonnelPage() {
   const [q, setQ] = useState("");
+  const [vulnFilter, setVulnFilter] = useState<string>("all");
   const list = useLiveQuery(() => db.personnel.toArray(), []);
   const [editing, setEditing] = useState<Personnel | null>(null);
   const [creating, setCreating] = useState(false);
 
-  console.log("PersonnelPage render. creating:", creating, "editing:", editing);
+  const counts = {
+    all: list?.length ?? 0,
+    children: (list ?? []).filter((p) => p.age <= 5).length,
+    women60: (list ?? []).filter((p) => p.gender === "F" && p.age >= 60).length,
+    disabled: (list ?? []).filter((p) => (p.disabilityFactor ?? 1) < 1.0).length,
+    patients: (list ?? []).filter((p) => ["Critical Patient", "Oxygen Support", "ICU Patient"].includes(p.specialNeedCategory ?? "")).length,
+    pregnant: (list ?? []).filter((p) => p.specialNeedCategory === "Pregnant Woman").length,
+    high: (list ?? []).filter((p) => 
+      p.age <= 5 || 
+      p.age >= 60 || 
+      (p.disabilityFactor ?? 1) < 1.0 || 
+      ["Critical Patient", "Oxygen Support", "ICU Patient"].includes(p.specialNeedCategory ?? "") || 
+      p.specialNeedCategory === "Pregnant Woman"
+    ).length,
+  };
 
   const filtered = (list ?? []).filter((p) => {
-    if (!q) return true;
-    const s = q.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(s) ||
-      p.employeeId.toLowerCase().includes(s) ||
-      p.department.toLowerCase().includes(s) ||
-      (p.specialNeedCategory ?? "").toLowerCase().includes(s)
-    );
+    // Text search
+    if (q) {
+      const s = q.toLowerCase();
+      if (
+        !p.name.toLowerCase().includes(s) &&
+        !p.employeeId.toLowerCase().includes(s) &&
+        !p.department.toLowerCase().includes(s) &&
+        !(p.specialNeedCategory ?? "").toLowerCase().includes(s)
+      ) {
+        return false;
+      }
+    }
+
+    // Vulnerability filter
+    if (vulnFilter === "all") return true;
+    if (vulnFilter === "children") return p.age <= 5;
+    if (vulnFilter === "women60") return p.gender === "F" && p.age >= 60;
+    if (vulnFilter === "disabled") return (p.disabilityFactor ?? 1) < 1.0;
+    if (vulnFilter === "patients") return ["Critical Patient", "Oxygen Support", "ICU Patient"].includes(p.specialNeedCategory ?? "");
+    if (vulnFilter === "pregnant") return p.specialNeedCategory === "Pregnant Woman";
+    if (vulnFilter === "high") {
+      return (
+        p.age <= 5 || 
+        p.age >= 60 || 
+        (p.disabilityFactor ?? 1) < 1.0 || 
+        ["Critical Patient", "Oxygen Support", "ICU Patient"].includes(p.specialNeedCategory ?? "") || 
+        p.specialNeedCategory === "Pregnant Woman"
+      );
+    }
+    return true;
   });
 
   // Sort by evacuation priority ascending, then by IVA score descending
@@ -180,6 +217,71 @@ function PersonnelPage() {
           placeholder="Search by name, ID, department, or special need"
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
+      </div>
+
+      {/* Personnel Vulnerability Filters */}
+      <div className="mb-6 space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Personnel Vulnerability Filters
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          <FilterChip 
+            active={vulnFilter === "all"} 
+            onClick={() => setVulnFilter("all")}
+            icon={Users}
+            label="All Personnel"
+            count={counts.all}
+          />
+          <FilterChip 
+            active={vulnFilter === "children"} 
+            onClick={() => setVulnFilter("children")}
+            icon={Baby}
+            label="Children Below 5"
+            count={counts.children}
+            colorClass="text-blue-400"
+          />
+          <FilterChip 
+            active={vulnFilter === "women60"} 
+            onClick={() => setVulnFilter("women60")}
+            icon={User}
+            label="Women Above 60"
+            count={counts.women60}
+            colorClass="text-purple-400"
+          />
+          <FilterChip 
+            active={vulnFilter === "disabled"} 
+            onClick={() => setVulnFilter("disabled")}
+            icon={Accessibility}
+            label="Disabled Personnel"
+            count={counts.disabled}
+            colorClass="text-orange-400"
+          />
+          <FilterChip 
+            active={vulnFilter === "patients"} 
+            onClick={() => setVulnFilter("patients")}
+            icon={HeartPulse}
+            label="Patients"
+            count={counts.patients}
+            colorClass="text-pink-400"
+          />
+          <FilterChip 
+            active={vulnFilter === "pregnant"} 
+            onClick={() => setVulnFilter("pregnant")}
+            icon={Heart}
+            label="Pregnant Women"
+            count={counts.pregnant}
+            colorClass="text-rose-400"
+          />
+          <FilterChip 
+            active={vulnFilter === "high"} 
+            onClick={() => setVulnFilter("high")}
+            icon={AlertTriangle}
+            label="High Vulnerable"
+            count={counts.high}
+            colorClass="text-risk-red"
+            isAlert
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -549,5 +651,52 @@ function StatCard({ label, value }: { label: string; value: number }) {
       </div>
       <div className="mt-1 font-mono text-xl font-black text-foreground">{value}</div>
     </div>
+  );
+}
+
+function FilterChip({ 
+  active, 
+  onClick, 
+  icon: Icon, 
+  label, 
+  count, 
+  colorClass = "text-muted-foreground",
+  isAlert = false
+}: { 
+  active: boolean; 
+  onClick: () => void; 
+  icon: any; 
+  label: string; 
+  count: number;
+  colorClass?: string;
+  isAlert?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative flex items-center gap-2 overflow-hidden rounded-xl border p-2 pr-3 text-left transition-all duration-300 ${
+        active 
+          ? isAlert 
+            ? "border-risk-red/50 bg-risk-red/10 shadow-[0_0_15px_rgba(239,68,68,0.15)]" 
+            : "border-primary/50 bg-primary/10 shadow-[0_0_15px_rgba(59,130,246,0.15)]"
+          : "border-border/60 bg-card/60 hover:bg-secondary/80 hover:border-border"
+      } backdrop-blur-md`}
+    >
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+        active 
+          ? isAlert ? "bg-risk-red/20 text-risk-red" : "bg-primary/20 text-primary" 
+          : "bg-secondary text-muted-foreground group-hover:text-foreground"
+      } transition-colors`}>
+        <Icon className={`h-4 w-4 ${active ? (isAlert ? "text-risk-red" : "text-primary") : colorClass}`} />
+      </div>
+      <div className="flex flex-col">
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>
+          {label}
+        </span>
+        <span className={`font-mono text-xs font-semibold ${active ? (isAlert ? "text-risk-red" : "text-primary") : "text-muted-foreground"}`}>
+          {count} <span className="text-[9px] font-normal opacity-70">records</span>
+        </span>
+      </div>
+    </button>
   );
 }

@@ -14,6 +14,8 @@ import {
   MapPin,
   MapPinOff,
   ShieldAlert,
+  Box,
+  CheckCircle,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { AppShell } from "@/components/app-shell";
@@ -96,6 +98,7 @@ function FloorPlansPage() {
   const [heatmapMode, setHeatmapMode] = useState<"NONE" | "OCCUPANCY" | "FIRE_RISK" | "EVACUATION">(
     "OCCUPANCY",
   );
+  const [viewMode, setViewMode] = useState<"cad" | "walkthrough">("cad");
 
   // Get the selected building object for Google Maps
   const selectedBuilding = useMemo(() => {
@@ -647,124 +650,176 @@ function FloorPlansPage() {
                 </>
               )}
 
-              {/* SVG Floor Plan with CAD Overlay */}
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl px-5 py-3 gap-3 shadow-sm">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                    <MapIcon className="h-4 w-4 text-primary" />
-                    {floor.name} — Level {floor.level}
-                  </div>
-
-                  {/* Canvas Controls */}
-                  <div className="flex items-center gap-4 flex-wrap">
-                    {/* Heatmap Mode */}
-                    <div className="flex items-center gap-1 border-r border-border pr-4">
-                      <span className="text-[9px] uppercase font-bold text-muted-foreground mr-1">
-                        Heat Map:
-                      </span>
-                      {(["NONE", "OCCUPANCY", "FIRE_RISK", "EVACUATION"] as const).map((mode) => (
-                        <button
-                          key={mode}
-                          onClick={() => setHeatmapMode(mode)}
-                          className={`text-[9px] font-semibold px-2 py-1 rounded transition-colors ${
-                            heatmapMode === mode
-                              ? "bg-blue-500/20 text-blue-500"
-                              : "bg-muted text-muted-foreground hover:bg-secondary"
-                          }`}
-                        >
-                          {mode === "NONE" ? "OFF" : mode.replace("_", " ")}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* CAD Settings */}
-                    {floorData?.drawing && (
-                      <div className="flex items-center gap-3 border-r border-border pr-4">
-                        <button
-                          onClick={() => setCadVisible(!cadVisible)}
-                          className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${cadVisible ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-                        >
-                          <Layers className="h-3.5 w-3.5" /> {cadVisible ? "CAD ON" : "CAD OFF"}
-                        </button>
-                        {cadVisible && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-                              Opacity
-                            </span>
-                            <input
-                              type="range"
-                              min="10"
-                              max="100"
-                              value={cadOpacity}
-                              onChange={(e) => setCadOpacity(Number(e.target.value))}
-                              className="w-20 accent-primary"
-                            />
-                            <span className="text-[10px] text-muted-foreground font-mono w-8">
-                              {cadOpacity}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Zoom */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
-                        className="grid h-7 w-7 place-items-center rounded border border-border hover:bg-secondary"
-                      >
-                        <ZoomOut className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                      <span className="font-mono text-xs w-12 text-center text-muted-foreground">
-                        {Math.round(zoom * 100)}%
-                      </span>
-                      <button
-                        onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
-                        className="grid h-7 w-7 place-items-center rounded border border-border hover:bg-secondary"
-                      >
-                        <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                      <button
-                        onClick={() => setZoom(1)}
-                        className="grid h-7 w-7 place-items-center rounded border border-border hover:bg-secondary"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Scaled Container */}
-                <div className="overflow-auto rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm relative min-h-[400px] shadow-inner">
-                  <div
-                    style={{
-                      transform: `scale(${zoom})`,
-                      transformOrigin: "top left",
-                      width: `${100 / zoom}%`,
-                    }}
-                    className="relative"
-                  >
-                    {floorData && (
-                      <CADOverlay
-                        drawing={floorData.drawing}
-                        visible={cadVisible}
-                        opacity={cadOpacity}
-                      />
-                    )}
-                    <FloorPlan
-                      floor={floor}
-                      zones={zones ?? []}
-                      zoneRisks={zoneRisks}
-                      onZoneClick={setSelectedZone}
-                      selectedZoneId={selectedZone?.id ?? null}
-                      transparentBackground={!!floorData?.drawing && cadVisible}
-                      cadElements={floorData?.stats?.cadElements}
-                      roomBoundaries={floorData?.stats?.roomBoundaries}
-                      simulationTime={simulationTime}
-                    />
-                  </div>
-                </div>
+              {/* View Mode Tabs */}
+              <div className="flex items-center gap-2 p-1.5 bg-secondary/50 rounded-xl border border-border/50 w-fit backdrop-blur-sm">
+                <button
+                  onClick={() => setViewMode("cad")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${
+                    viewMode === "cad"
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                  }`}
+                >
+                  <MapIcon className="h-4 w-4" />
+                  CAD View
+                </button>
+                <button
+                  onClick={() => setViewMode("walkthrough")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${
+                    viewMode === "walkthrough"
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                  }`}
+                >
+                  <Box className="h-4 w-4" />
+                  Walkthrough View
+                </button>
               </div>
+
+              {viewMode === "cad" ? (
+                // SVG Floor Plan with CAD Overlay
+                <div className="space-y-3 animate-in fade-in duration-300">
+                  <div className="flex flex-wrap items-center justify-between rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl px-5 py-3 gap-3 shadow-sm">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                      <MapIcon className="h-4 w-4 text-primary" />
+                      {floor.name} — Level {floor.level}
+                    </div>
+
+                    {/* Canvas Controls */}
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {/* Heatmap Mode */}
+                      <div className="flex items-center gap-1 border-r border-border pr-4">
+                        <span className="text-[9px] uppercase font-bold text-muted-foreground mr-1">
+                          Heat Map:
+                        </span>
+                        {(["NONE", "OCCUPANCY", "FIRE_RISK", "EVACUATION"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            onClick={() => setHeatmapMode(mode)}
+                            className={`text-[9px] font-semibold px-2 py-1 rounded transition-colors ${
+                              heatmapMode === mode
+                                ? "bg-blue-500/20 text-blue-500"
+                                : "bg-muted text-muted-foreground hover:bg-secondary"
+                            }`}
+                          >
+                            {mode === "NONE" ? "OFF" : mode.replace("_", " ")}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* CAD Settings */}
+                      {floorData?.drawing && (
+                        <div className="flex items-center gap-3 border-r border-border pr-4">
+                          <button
+                            onClick={() => setCadVisible(!cadVisible)}
+                            className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${cadVisible ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                          >
+                            <Layers className="h-3.5 w-3.5" /> {cadVisible ? "CAD ON" : "CAD OFF"}
+                          </button>
+                          {cadVisible && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                Opacity
+                              </span>
+                              <input
+                                type="range"
+                                min="10"
+                                max="100"
+                                value={cadOpacity}
+                                onChange={(e) => setCadOpacity(Number(e.target.value))}
+                                className="w-20 accent-primary"
+                              />
+                              <span className="text-[10px] text-muted-foreground font-mono w-8">
+                                {cadOpacity}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Zoom */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+                          className="grid h-7 w-7 place-items-center rounded border border-border hover:bg-secondary"
+                        >
+                          <ZoomOut className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        <span className="font-mono text-xs w-12 text-center text-muted-foreground">
+                          {Math.round(zoom * 100)}%
+                        </span>
+                        <button
+                          onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+                          className="grid h-7 w-7 place-items-center rounded border border-border hover:bg-secondary"
+                        >
+                          <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => setZoom(1)}
+                          className="grid h-7 w-7 place-items-center rounded border border-border hover:bg-secondary"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scaled Container */}
+                  <div className="overflow-auto rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm relative min-h-[400px] shadow-inner">
+                    <div
+                      style={{
+                        transform: `scale(${zoom})`,
+                        transformOrigin: "top left",
+                        width: `${100 / zoom}%`,
+                      }}
+                      className="relative"
+                    >
+                      {floorData && (
+                        <CADOverlay
+                          drawing={floorData.drawing}
+                          visible={cadVisible}
+                          opacity={cadOpacity}
+                        />
+                      )}
+                      <FloorPlan
+                        floor={floor}
+                        zones={zones ?? []}
+                        zoneRisks={zoneRisks}
+                        onZoneClick={setSelectedZone}
+                        selectedZoneId={selectedZone?.id ?? null}
+                        transparentBackground={!!floorData?.drawing && cadVisible}
+                        cadElements={floorData?.stats?.cadElements}
+                        roomBoundaries={floorData?.stats?.roomBoundaries}
+                        simulationTime={simulationTime}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Walkthrough View Placeholder
+                <div className="rounded-2xl border border-blue-500/20 bg-card/80 backdrop-blur-xl relative overflow-hidden min-h-[500px] flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300 shadow-sm hover:shadow-md hover:border-blue-400/40 transition-all">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400/80 to-blue-400/20 opacity-80" />
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+                  
+                  <div className="z-10 flex flex-col items-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 shadow-inner mb-6 border border-blue-500/20">
+                      <Box className="h-10 w-10 animate-pulse" />
+                    </div>
+                    
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-400 border border-blue-500/20 mb-4">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Integration Ready
+                    </span>
+
+                    <h2 className="text-2xl font-bold text-foreground mb-2">3D Walkthrough View</h2>
+                    <h3 className="text-lg font-semibold text-blue-400 mb-6 uppercase tracking-wider text-[11px]">Ready for Integration</h3>
+                    
+                    <p className="max-w-md text-sm text-muted-foreground leading-relaxed">
+                      This area will display the interactive 3D building walkthrough for navigation, emergency response, evacuation planning, and safety visualization.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {selectedZone && floor && (
                 <ZoneEditor zone={selectedZone} onClose={() => setSelectedZone(null)} />

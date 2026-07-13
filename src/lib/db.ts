@@ -167,6 +167,24 @@ export interface ActivityLog {
   message: string;
 }
 
+export interface FireInventory {
+  id?: number;
+  inventoryId: string;
+  equipmentName: string;
+  equipmentType: string;
+  building: string;
+  floor: string;
+  zoneRoom: string;
+  quantity: number;
+  installationDate: string;
+  lastInspectionDate: string;
+  expiryDate: string;
+  maintenanceDueDate: string;
+  status: "Active" | "Expired" | "Under Maintenance";
+  assignedMaintenanceTeam: string;
+  remarks: string;
+}
+
 class FDVADatabase extends Dexie {
   buildings!: Table<Building, number>;
   floors!: Table<Floor, number>;
@@ -175,6 +193,7 @@ class FDVADatabase extends Dexie {
   incidents!: Table<Incident, number>;
   occupancy!: Table<OccupancyEvent, number>;
   activity!: Table<ActivityLog, number>;
+  fireInventory!: Table<FireInventory, number>;
 
   constructor() {
     super("fdva-db");
@@ -215,6 +234,19 @@ class FDVADatabase extends Dexie {
             if (p.evacuationPriority === undefined) p.evacuationPriority = 7;
           });
       });
+    
+    // Version 4 - Fire Inventory added
+    this.version(4).stores({
+      buildings: "++id, name, type, status",
+      floors: "++id, buildingId, level",
+      zones: "++id, buildingId, floorId, zoneId",
+      personnel:
+        "++id, employeeId, department, assignedFloor, specialNeedCategory, evacuationPriority",
+      incidents: "++id, incidentId, buildingId, status, startedAt",
+      occupancy: "++id, zoneId, date",
+      activity: "++id, timestamp, kind",
+      fireInventory: "++id, inventoryId, equipmentName, equipmentType, building, floor, zoneRoom, status, expiryDate, maintenanceDueDate",
+    });
   }
 }
 

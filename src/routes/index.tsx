@@ -23,6 +23,12 @@ import {
   AlertCircle,
   LayoutDashboard,
   Layers,
+  Package,
+  CheckCircle,
+  XCircle,
+  CloudFog,
+  Zap,
+  Fuel,
 } from "lucide-react";
 import {
   Accordion,
@@ -72,9 +78,22 @@ function Index() {
     () => db.activity.orderBy("timestamp").reverse().limit(10).toArray(),
     [],
   );
+  const fireInventory = useLiveQuery(() => db.fireInventory.toArray(), []);
 
   const totalOccupants = zones?.reduce((s, z) => s + z.occupancy, 0) ?? 0;
   const activeIncidents = incidents?.filter((i) => i.status === "active") ?? [];
+
+  // Fire Inventory KPIs
+  const totalFireInventory = fireInventory?.length ?? 0;
+  const activeFireInventory = fireInventory?.filter((i) => {
+    // Check if expired
+    const isExpired = new Date() > new Date(i.expiryDate);
+    // Logic: if today is before expiry date and status was marked Active (or simply calculate on the fly as requested)
+    return !isExpired && i.status !== "Under Maintenance";
+  }).length ?? 0;
+  const expiredFireInventory = fireInventory?.filter((i) => {
+    return new Date() > new Date(i.expiryDate) || i.status === "Expired";
+  }).length ?? 0;
 
   const allImpacts = useMemo(() => {
     if (!buildings || !floors || !zones) return [];
@@ -310,6 +329,152 @@ function Index() {
               icon={Gauge}
               tone={avgVuln > 50 ? "warn" : "default"}
             />
+            <Link to="/fire-inventory" className="block">
+              <KpiCard 
+                label="Total Fire Inventory" 
+                value={totalFireInventory} 
+                icon={Package} 
+              />
+            </Link>
+            <Link to="/fire-inventory" search={{ filter: 'active' }} className="block">
+              <KpiCard 
+                label="Active Fire Inventory" 
+                value={activeFireInventory} 
+                icon={CheckCircle}
+                tone="success"
+              />
+            </Link>
+            <Link to="/fire-inventory" search={{ filter: 'expired' }} className="block">
+              <KpiCard 
+                label="Expired Fire Inventory" 
+                value={expiredFireInventory} 
+                icon={XCircle}
+                tone="danger"
+              />
+            </Link>
+          </div>
+
+          {/* IoT Emergency Alerts */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-1">
+              <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="inline-block h-2 w-2 rounded-full bg-risk-green animate-pulse" />
+                IoT Emergency Alerts
+              </div>
+              <div className="flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                <Activity className="h-3.5 w-3.5" />
+                Future IoT Sensor Integration Ready
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* CARD 1: Fire Alert */}
+              <div className="group rounded-2xl border border-blue-500/20 bg-card/80 p-5 shadow-sm backdrop-blur-xl transition-all hover:shadow-md hover:border-risk-red/40 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-risk-red/80 to-risk-red/20 opacity-80" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-risk-red/15 text-risk-red shadow-inner">
+                      <Flame className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Active Alert</div>
+                      <div className="font-bold text-foreground">Fire Alert</div>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-risk-red/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-risk-red border border-risk-red/20 animate-pulse">
+                    Critical
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-y-2 text-xs">
+                  <div className="text-muted-foreground">Building:</div>
+                  <div className="font-semibold text-right text-foreground">Building A</div>
+                  <div className="text-muted-foreground">Location:</div>
+                  <div className="font-semibold text-right text-foreground">Flr 3, Zone Z4</div>
+                  <div className="text-muted-foreground mt-2">Detected:</div>
+                  <div className="font-mono font-medium text-right mt-2 text-risk-red">10:42 AM</div>
+                </div>
+              </div>
+
+              {/* CARD 2: Smoke Alert */}
+              <div className="group rounded-2xl border border-blue-500/20 bg-card/80 p-5 shadow-sm backdrop-blur-xl transition-all hover:shadow-md hover:border-blue-400/40 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400/80 to-blue-400/20 opacity-80" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400 shadow-inner">
+                      <CloudFog className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Air Quality</div>
+                      <div className="font-bold text-foreground">Smoke Alert</div>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-risk-green/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-risk-green border border-risk-green/20">
+                    Normal
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-y-2 text-xs">
+                  <div className="text-muted-foreground">Building:</div>
+                  <div className="font-semibold text-right text-foreground">Building B</div>
+                  <div className="text-muted-foreground">Location:</div>
+                  <div className="font-semibold text-right text-foreground">Flr 2, Zone A1</div>
+                  <div className="text-muted-foreground mt-2">Density:</div>
+                  <div className="font-mono font-medium text-right mt-2 text-blue-400">12 AQI</div>
+                </div>
+              </div>
+
+              {/* CARD 3: Electrical Short Circuit */}
+              <div className="group rounded-2xl border border-blue-500/20 bg-card/80 p-5 shadow-sm backdrop-blur-xl transition-all hover:shadow-md hover:border-risk-yellow/40 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-risk-yellow/80 to-risk-yellow/20 opacity-80" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-risk-yellow/15 text-risk-yellow shadow-inner">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Power Grid</div>
+                      <div className="font-bold text-foreground truncate max-w-[100px]" title="Electrical Fault">Electrical Fault</div>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-risk-yellow/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-risk-yellow border border-risk-yellow/20">
+                    Warning
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-y-2 text-xs">
+                  <div className="text-muted-foreground">Building:</div>
+                  <div className="font-semibold text-right text-foreground">Building C</div>
+                  <div className="text-muted-foreground">Location:</div>
+                  <div className="font-semibold text-right text-foreground">Flr 1, Panel E-12</div>
+                  <div className="text-muted-foreground mt-2">Detected:</div>
+                  <div className="font-mono font-medium text-right mt-2 text-risk-yellow">10:15 AM</div>
+                </div>
+              </div>
+
+              {/* CARD 4: Gas Leak Alert */}
+              <div className="group rounded-2xl border border-blue-500/20 bg-card/80 p-5 shadow-sm backdrop-blur-xl transition-all hover:shadow-md hover:border-risk-orange/40 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-risk-orange/80 to-risk-orange/20 opacity-80" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-risk-orange/15 text-risk-orange shadow-inner">
+                      <Fuel className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Gas Monitor</div>
+                      <div className="font-bold text-foreground">Gas Leak</div>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-risk-orange/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-risk-orange border border-risk-orange/20">
+                    High
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-y-2 text-xs">
+                  <div className="text-muted-foreground">Building:</div>
+                  <div className="font-semibold text-right text-foreground">Building A</div>
+                  <div className="text-muted-foreground">Location:</div>
+                  <div className="font-semibold text-right text-foreground">Zone G2</div>
+                  <div className="text-muted-foreground mt-2">Concentration:</div>
+                  <div className="font-mono font-medium text-right mt-2 text-risk-orange">450 ppm</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Executive Charts */}

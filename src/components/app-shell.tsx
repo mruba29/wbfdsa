@@ -4,6 +4,8 @@ import { SeedProvider } from "./seed-provider";
 import { useApp, type UserRole } from "@/lib/store";
 import { Activity } from "lucide-react";
 
+import { HierarchySelector } from "./hierarchy-selector";
+
 export function AppShell({
   title,
   subtitle,
@@ -43,7 +45,8 @@ export function AppShell({
               </div>
               {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
+              <HierarchySelector />
               {actions}
               <select
                 value={role}
