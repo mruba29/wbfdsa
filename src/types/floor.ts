@@ -101,4 +101,5 @@ export interface FloorData {
   stats: FloorStatistics;
   vulnerability?: FloorVulnerability;
   drawing?: CADDrawing;
+  aiAnalysis?: any;
 }

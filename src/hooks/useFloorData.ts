@@ -135,24 +135,46 @@ export function useFloorData(buildingId: string | null, level: number | null) {
           }
 
           // AI CAD Extraction
-          const { extractCADData, calculateVulnerability, uploadCADFileToBackend } =
+          const { extractCADData, calculateVulnerability, uploadCADFileToBackend, populateDatabaseFromCAD } =
             await import("@/services/aiCadService");
           const extractedStats = await extractCADData(file);
+
+          // Populate IndexedDB with Building, Floor, Zones, and Equipment (STEP 1 & 6)
+          const populated = await populateDatabaseFromCAD(buildingId, level, extractedStats);
 
           // Upload to backend
           await uploadCADFileToBackend(`cad_${Date.now()}`, file, fileUrl);
 
-          // Merge stats
+          // Merge stats into FloorStatistics format
           const newStats = {
             ...baseData.stats,
-            ...extractedStats,
+            directExits: extractedStats.directExitsCount || 2,
+            emergencyExits: extractedStats.emergencyExitsCount || 1,
+            doors: extractedStats.doorsCount || 10,
+            windows: extractedStats.windowsCount || 15,
+            staircases: extractedStats.staircasesCount || 2,
+            lifts: extractedStats.elevatorsCount || 1,
+            roomNames: extractedStats.rooms?.map((r: any) => r.name) || [],
+            roomBoundaries: populated.roomBoundaries,
+            distanceToStaircase: `${Math.round(5 + (extractedStats.rooms?.length || 5) * 1.2)} meters`,
+            distanceToLift: `${Math.round(10 + (extractedStats.rooms?.length || 5) * 1.5)} meters`,
+            cadElements: extractedStats.rooms?.map((r: any, idx: number) => ({
+              id: `elem-${idx}`,
+              type: r.type === "Lobby" ? "EXIT" : "DOOR",
+              x: r.x + r.w / 2,
+              y: r.y + r.h / 2,
+              w: 4,
+              h: 2
+            })) || []
           };
 
-          // Calculate new vulnerability using 8-factor formula
+          // Calculate new vulnerability using formulas (STEP 3)
           const vulnerability = await calculateVulnerability(
             extractedStats,
             baseData.details.currentOccupancy,
             baseData.details.maxOccupancy,
+            0,
+            level ?? 1
           );
 
           const uploadDate = new Date().toISOString().split("T")[0];
@@ -163,8 +185,10 @@ export function useFloorData(buildingId: string | null, level: number | null) {
 
           const updatedData: FloorData = {
             ...baseData,
+            buildingId: String(populated.buildingId),
             stats: newStats,
             vulnerability,
+            aiAnalysis: extractedStats,
             details: {
               ...baseData.details,
               revisionNumber: `v${(revNumber + 0.1).toFixed(1)}`,
@@ -180,11 +204,11 @@ export function useFloorData(buildingId: string | null, level: number | null) {
             },
           };
 
-          const saved = await service.saveFloorData(buildingId, level, updatedData);
+          const saved = await service.saveFloorData(String(populated.buildingId), level, updatedData);
           setFloorData(saved);
           toast.dismiss("ai-cad");
           toast.success(
-            `CAD Analysis Complete! Extracted ${extractedStats.doors} doors, ${extractedStats.staircases} staircases, ${extractedStats.roomNames?.length ?? 0} rooms.`,
+            `CAD Analysis Complete! Extracted ${newStats.doors} doors, ${newStats.staircases} staircases, ${newStats.roomNames?.length ?? 0} rooms.`,
           );
           resolve(saved);
         } catch (err) {

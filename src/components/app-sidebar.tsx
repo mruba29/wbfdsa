@@ -8,6 +8,7 @@ import {
   ShieldAlert,
   CalendarRange,
   Layers,
+  Brain,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 
@@ -34,6 +35,7 @@ const navigationGroups = [
       { to: "/personnel", label: "Personnel", icon: Users },
       { to: "/incidents", label: "Fire Incidents", icon: Flame },
       { to: "/vulnerability", label: "Vulnerability", icon: ShieldAlert },
+      { to: "/ai-analysis", label: "AI Building Analysis", icon: Brain },
       { to: "/fire-inventory", label: "Fire Inventory", icon: Flame },
     ],
   },

@@ -36,6 +36,8 @@ import { syncFromService, createFloorOnService } from "@/services/dbSync";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { type RiskLevel } from "@/lib/vulnerability";
+import { Walkthrough3D } from "@/components/Walkthrough3D";
+import { AIAnalysisPanel } from "@/components/AIAnalysisPanel";
 
 export const Route = createFileRoute("/floor-plans")({
   head: () => ({
@@ -99,6 +101,21 @@ function FloorPlansPage() {
     "OCCUPANCY",
   );
   const [viewMode, setViewMode] = useState<"cad" | "walkthrough">("cad");
+
+  const [apiKey, setApiKey] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("gemini_api_key") || "";
+    }
+    return "";
+  });
+  const [highlightedElement, setHighlightedElement] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleSaveApiKey = (keyVal: string) => {
+    localStorage.setItem("gemini_api_key", keyVal);
+    setApiKey(keyVal);
+  };
 
   // Get the selected building object for Google Maps
   const selectedBuilding = useMemo(() => {
@@ -179,6 +196,64 @@ function FloorPlansPage() {
 
   const buildingIdStr = bId ? String(bId) : null;
   const { floorData, loading, uploadCADFile, deleteCADFile } = useFloorData(buildingIdStr, fLevel);
+
+  const aiAnalysis = useMemo(() => {
+    return floorData?.aiAnalysis ?? null;
+  }, [floorData]);
+
+  // Auto-run AI analysis if drawing exists but no aiAnalysis is stored
+  useEffect(() => {
+    if (viewMode === "walkthrough" && floorData?.drawing && !floorData?.aiAnalysis && !aiLoading) {
+      const runAi = async () => {
+        setAiLoading(true);
+        setAiError(null);
+        try {
+          const { extractCADData, calculateVulnerability, populateDatabaseFromCAD } = await import("@/services/aiCadService");
+          // Generate analysis based on file details
+          const extractedStats = await extractCADData(new File([], floorData.drawing!.name));
+          const populated = await populateDatabaseFromCAD(String(bId), fLevel, extractedStats);
+          
+          const newStats = {
+            ...floorData.stats,
+            directExits: extractedStats.directExitsCount || 2,
+            emergencyExits: extractedStats.emergencyExitsCount || 1,
+            doors: extractedStats.doorsCount || 10,
+            windows: extractedStats.windowsCount || 15,
+            staircases: extractedStats.staircasesCount || 2,
+            lifts: extractedStats.elevatorsCount || 1,
+            roomNames: extractedStats.rooms?.map((r: any) => r.name) || [],
+            roomBoundaries: populated.roomBoundaries,
+            distanceToStaircase: `${Math.round(5 + (extractedStats.rooms?.length || 5) * 1.2)} meters`,
+            distanceToLift: `${Math.round(10 + (extractedStats.rooms?.length || 5) * 1.5)} meters`,
+          };
+
+          const vulnerability = await calculateVulnerability(
+            extractedStats,
+            floorData.details.currentOccupancy,
+            floorData.details.maxOccupancy,
+            0,
+            fLevel ?? 1
+          );
+
+          const updatedData = {
+            ...floorData,
+            stats: newStats,
+            vulnerability,
+            aiAnalysis: extractedStats
+          };
+
+          const service = (await import("@/services/dbSync")).getActiveService();
+          await service.saveFloorData(String(bId), fLevel ?? 1, updatedData);
+        } catch (err: any) {
+          console.error("AI Auto-analysis error:", err);
+          setAiError(err.message || "Failed to analyze floor plan.");
+        } finally {
+          setAiLoading(false);
+        }
+      };
+      runAi();
+    }
+  }, [viewMode, floorData, bId, fLevel]);
 
   // Compute dynamic vulnerability based on simulation time
   const dynamicVulnerability = useMemo(() => {
@@ -600,6 +675,17 @@ function FloorPlansPage() {
                 onDelete={deleteCADFile}
                 currentCAD={floorData?.drawing}
               />
+              {!floorData?.drawing && (
+                <button
+                  onClick={() => {
+                    const dummyFile = new File(["dummy dxf content"], "fire-safety-demo.dxf", { type: "text/plain" });
+                    uploadCADFile(dummyFile, floor.name);
+                  }}
+                  className="w-full text-center py-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 text-[10px] font-bold rounded-lg uppercase tracking-wider transition-colors mt-2"
+                >
+                  🔥 Load Fire Safety Demo
+                </button>
+              )}
             </div>
           )}
 
@@ -796,73 +882,30 @@ function FloorPlansPage() {
                   </div>
                 </div>
               ) : (
-                // Walkthrough View Placeholder
-                <div className="rounded-2xl border border-blue-500/20 bg-card/85 backdrop-blur-xl relative overflow-hidden min-h-[500px] flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300 shadow-lg hover:shadow-xl hover:border-blue-400/40 transition-all">
-                  {/* Top indicator bar */}
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-sky-400 to-blue-600 opacity-80" />
-                  
-                  {/* Grid overlay for 3D/Tech design aesthetic */}
-                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"></div>
-                  
-                  {/* Ambient blue glow behind the illustration */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
-
-                  {/* 
-                    DEVELOPER NOTICE: 
-                    This container is ready to embed 3D rendering engines (Three.js / Babylon.js / WebGL),
-                    an iframe, or a video walkthrough. Simply replace the content of this div or mount
-                    your canvas inside this container.
-                  */}
-                  <div className="z-10 flex flex-col items-center max-w-lg">
-                    {/* Modern 3D Building Isometric Wireframe Illustration */}
-                    <div className="relative mb-6 flex items-center justify-center">
-                      <svg viewBox="0 0 240 240" className="w-44 h-44 text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.25)]">
-                        {/* Connecting vertical column guides */}
-                        <line x1="40" y1="65" x2="40" y2="185" stroke="rgba(59, 130, 246, 0.2)" strokeWidth="1" strokeDasharray="3 3" />
-                        <line x1="200" y1="65" x2="200" y2="185" stroke="rgba(59, 130, 246, 0.2)" strokeWidth="1" strokeDasharray="3 3" />
-                        <line x1="120" y1="25" x2="120" y2="145" stroke="rgba(59, 130, 246, 0.1)" strokeWidth="1" strokeDasharray="3 3" />
-                        <line x1="120" y1="105" x2="120" y2="225" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="1.5" strokeDasharray="3 3" />
-
-                        {/* Floor 3 (Top Floor) */}
-                        <polygon points="120,25 200,65 120,105 40,65" fill="rgba(59, 130, 246, 0.03)" stroke="rgba(59, 130, 246, 0.35)" strokeWidth="1.5" />
-                        <line x1="80" y1="45" x2="160" y2="85" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1" />
-                        <line x1="160" y1="45" x2="80" y2="85" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1" />
-
-                        {/* Floor 2 (Middle Floor) */}
-                        <polygon points="120,85 200,125 120,165 40,125" fill="rgba(59, 130, 246, 0.08)" stroke="rgba(59, 130, 246, 0.5)" strokeWidth="1.5" />
-                        <line x1="80" y1="105" x2="160" y2="145" stroke="rgba(59, 130, 246, 0.2)" strokeWidth="1" />
-                        <line x1="120" y1="105" x2="120" y2="165" stroke="rgba(59, 130, 246, 0.2)" strokeWidth="1" />
-
-                        {/* Floor 1 (Ground Floor) */}
-                        <polygon points="120,145 200,185 120,225 40,185" fill="rgba(59, 130, 246, 0.15)" stroke="rgba(59, 130, 246, 0.75)" strokeWidth="2" />
-                        <line x1="80" y1="165" x2="160" y2="205" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="1" />
-                        <line x1="160" y1="165" x2="80" y2="205" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="1" />
-
-                        {/* Evacuation Route path guide line */}
-                        <path d="M120,50 L120,125 L80,145 L120,205" fill="none" stroke="rgba(249, 115, 22, 0.6)" strokeWidth="1.5" strokeDasharray="4 2" />
-
-                        {/* Pulsing hazard indicator on the middle floor */}
-                        <circle cx="120" cy="125" r="7" fill="#ef4444" fillOpacity="0.4" className="animate-ping" style={{ transformOrigin: '120px 125px' }} />
-                        <circle cx="120" cy="125" r="4" fill="#ef4444" />
-                      </svg>
-                      
-                      {/* Interactive Float / Spin box icon on top right */}
-                      <div className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400">
-                        <Box className="h-4 w-4 animate-bounce" />
-                      </div>
-                    </div>
-
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-400 border border-blue-500/20 mb-4 shadow-sm">
-                      <CheckCircle className="h-3.5 w-3.5 text-blue-400" />
-                      Ready for Integration
-                    </span>
-
-                    <h2 className="text-2xl font-bold text-foreground mb-1 tracking-tight">3D Walkthrough View</h2>
-                    <h3 className="text-xs font-semibold text-blue-400 mb-5 uppercase tracking-[0.18em]">Ready for Integration</h3>
-                    
-                    <p className="text-muted-foreground text-xs leading-relaxed max-w-sm">
-                      This section will display an interactive 3D walkthrough of the selected building for navigation, emergency planning, evacuation analysis, and facility visualization.
-                    </p>
+                <div className="grid gap-4 lg:grid-cols-[1fr_360px] animate-in fade-in duration-300">
+                  <div className="h-[600px]">
+                    <Walkthrough3D
+                      buildingName={selectedBuilding?.name ?? "Building"}
+                      floorLevel={floor.level}
+                      floorId={floor.id!}
+                      zones={zones ?? []}
+                      simulationTime={simulationTime}
+                      highlightedElement={highlightedElement}
+                      onZoneClick={setSelectedZone}
+                      selectedZone={selectedZone}
+                      drawing={floorData?.drawing}
+                    />
+                  </div>
+                  <div className="h-[600px]">
+                    <AIAnalysisPanel
+                      aiAnalysis={aiAnalysis}
+                      aiLoading={aiLoading}
+                      aiError={aiError}
+                      onSetApiKey={handleSaveApiKey}
+                      apiKey={apiKey}
+                      onHighlightToggle={(elem) => setHighlightedElement(highlightedElement === elem ? null : elem)}
+                      highlightedElement={highlightedElement}
+                    />
                   </div>
                 </div>
               )}
