@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VulnerabilityRouteImport } from './routes/vulnerability'
+import { Route as SimulationRouteImport } from './routes/simulation'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as PortfolioMapRouteImport } from './routes/portfolio-map'
@@ -27,6 +28,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const VulnerabilityRoute = VulnerabilityRouteImport.update({
   id: '/vulnerability',
   path: '/vulnerability',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimulationRoute = SimulationRouteImport.update({
+  id: '/simulation',
+  path: '/simulation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/portfolio-map': typeof PortfolioMapRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/simulation': typeof SimulationRoute
   '/vulnerability': typeof VulnerabilityRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/portfolio-map': typeof PortfolioMapRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/simulation': typeof SimulationRoute
   '/vulnerability': typeof VulnerabilityRoute
 }
 export interface FileRoutesById {
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/portfolio-map': typeof PortfolioMapRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/simulation': typeof SimulationRoute
   '/vulnerability': typeof VulnerabilityRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/portfolio-map'
     | '/reports'
     | '/settings'
+    | '/simulation'
     | '/vulnerability'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/portfolio-map'
     | '/reports'
     | '/settings'
+    | '/simulation'
     | '/vulnerability'
   id:
     | '__root__'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/portfolio-map'
     | '/reports'
     | '/settings'
+    | '/simulation'
     | '/vulnerability'
   fileRoutesById: FileRoutesById
 }
@@ -209,6 +221,7 @@ export interface RootRouteChildren {
   PortfolioMapRoute: typeof PortfolioMapRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
+  SimulationRoute: typeof SimulationRoute
   VulnerabilityRoute: typeof VulnerabilityRoute
 }
 
@@ -219,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/vulnerability'
       fullPath: '/vulnerability'
       preLoaderRoute: typeof VulnerabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulation': {
+      id: '/simulation'
+      path: '/simulation'
+      fullPath: '/simulation'
+      preLoaderRoute: typeof SimulationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -329,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   PortfolioMapRoute: PortfolioMapRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
+  SimulationRoute: SimulationRoute,
   VulnerabilityRoute: VulnerabilityRoute,
 }
 export const routeTree = rootRouteImport

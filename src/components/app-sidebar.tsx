@@ -14,29 +14,15 @@ import { useApp } from "@/lib/store";
 
 const navigationGroups = [
   {
-    label: "Overview",
+    label: "Main Navigation",
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/portfolio-map", label: "Portfolio Map", icon: Map },
-    ],
-  },
-  {
-    label: "Assets",
-    items: [
-      { to: "/buildings", label: "Buildings", icon: Building2 },
-      { to: "/building-input", label: "Building Input", icon: Building2 },
+      { to: "/buildings", label: "Building Master", icon: Building2 },
       { to: "/floor-plans", label: "Floor Plans", icon: Layers },
-      { to: "/occupancy", label: "Occupancy", icon: CalendarRange },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
+      { to: "/vulnerability", label: "Vulnerability Analytics", icon: ShieldAlert },
       { to: "/personnel", label: "Personnel", icon: Users },
-      { to: "/incidents", label: "Fire Incidents", icon: Flame },
-      { to: "/vulnerability", label: "Vulnerability", icon: ShieldAlert },
-      { to: "/ai-analysis", label: "AI Building Analysis", icon: Brain },
       { to: "/fire-inventory", label: "Fire Inventory", icon: Flame },
+      { to: "/simulation", label: "Simulation", icon: Brain },
     ],
   },
 ];

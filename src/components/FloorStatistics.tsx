@@ -3,80 +3,44 @@ import {
   LogOut,
   DoorOpen,
   LayoutGrid,
-  Compass,
   Landmark,
   ArrowUpDown,
   Users,
-  UserCheck,
-  Navigation,
   AlertTriangle,
-  ShieldCheck,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import type {
-  FloorStatistics as FloorStatsType,
-  FloorVulnerability,
-  RiskLevelType,
-} from "@/types/floor";
+import type { FloorStatistics as FloorStatsType } from "@/types/floor";
 
 interface FloorStatisticsProps {
   stats: FloorStatsType;
-  vulnerability?: FloorVulnerability;
-  floorRisk?: RiskLevelType;
 }
 
-const RISK_COLOR: Record<RiskLevelType, string> = {
-  LOW: "text-risk-green bg-risk-green/10",
-  MEDIUM: "text-amber-500 bg-amber-500/10",
-  HIGH: "text-orange-500 bg-orange-500/10",
-  CRITICAL: "text-risk-red bg-risk-red/10",
-};
-
-export function FloorStatistics({ stats, vulnerability, floorRisk }: FloorStatisticsProps) {
+export function FloorStatistics({ stats }: FloorStatisticsProps) {
   const items = [
-    // ── Risk / vulnerability summary cards ──
-    ...(floorRisk
-      ? [
-          {
-            label: "Floor Risk Level",
-            value: floorRisk,
-            icon: ShieldCheck,
-            color: RISK_COLOR[floorRisk],
-          },
-        ]
-      : []),
-    ...(vulnerability
-      ? [
-          {
-            label: "Vulnerability Score",
-            value: `${vulnerability.overallVulnerability}%`,
-            icon: AlertTriangle,
-            color:
-              vulnerability.overallVulnerability > 75
-                ? "text-risk-red bg-risk-red/10"
-                : vulnerability.overallVulnerability > 55
-                  ? "text-orange-500 bg-orange-500/10"
-                  : vulnerability.overallVulnerability > 35
-                    ? "text-amber-500 bg-amber-500/10"
-                    : "text-risk-green bg-risk-green/10",
-          },
-        ]
-      : []),
-
-    // ── Structural stats ──
     {
-      label: "Direct Exits",
+      label: "Occupancy",
+      value: stats.currentOccupancy,
+      icon: Users,
+      color: "text-teal-500 bg-teal-500/10",
+    },
+    {
+      label: "Direct Exit",
       value: stats.directExits,
       icon: LogOut,
       color: "text-risk-green bg-risk-green/10",
     },
     {
-      label: "Emergency Exits",
+      label: "Emergency Exit",
       value: stats.emergencyExits ?? 0,
       icon: AlertTriangle,
       color: "text-red-500 bg-red-500/10",
     },
-    { label: "Doors", value: stats.doors, icon: DoorOpen, color: "text-blue-500 bg-blue-500/10" },
+    {
+      label: "Doors",
+      value: stats.doors,
+      icon: DoorOpen,
+      color: "text-blue-500 bg-blue-500/10",
+    },
     {
       label: "Windows",
       value: stats.windows,
@@ -95,30 +59,6 @@ export function FloorStatistics({ stats, vulnerability, floorRisk }: FloorStatis
       icon: ArrowUpDown,
       color: "text-cyan-500 bg-cyan-500/10",
     },
-    {
-      label: "Avg Dist · Staircase",
-      value: stats.distanceToStaircase,
-      icon: Compass,
-      color: "text-purple-500 bg-purple-500/10",
-    },
-    {
-      label: "Avg Dist · Lift",
-      value: stats.distanceToLift || "N/A",
-      icon: Navigation,
-      color: "text-indigo-500 bg-indigo-500/10",
-    },
-    {
-      label: "Max Occupancy",
-      value: stats.maxOccupancy,
-      icon: Users,
-      color: "text-pink-500 bg-pink-500/10",
-    },
-    {
-      label: "Current Occupancy",
-      value: stats.currentOccupancy,
-      icon: UserCheck,
-      color: "text-teal-500 bg-teal-500/10",
-    },
   ];
 
   const container = {
@@ -136,11 +76,11 @@ export function FloorStatistics({ stats, vulnerability, floorRisk }: FloorStatis
 
   return (
     <motion.div
-      key={`${stats.doors}-${stats.staircases}`} // re-animate when floor changes
+      key={`${stats.doors}-${stats.staircases}-${stats.currentOccupancy}`}
       variants={container}
       initial="hidden"
       animate="show"
-      className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
+      className="grid gap-3 grid-cols-2 md:grid-cols-4"
     >
       {items.map((it) => {
         const Icon = it.icon;

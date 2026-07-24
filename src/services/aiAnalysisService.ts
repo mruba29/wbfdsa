@@ -73,7 +73,7 @@ export async function generateBuildingAnalysis(input: BuildingAnalysisInput): Pr
   try {
     const promptText = `
 You are an expert AI fire safety officer, building inspector, and emergency response analyst.
-Your task is to analyze the following project data for a building (including detailed floor-level physical features, wall thickness, structure, equipment, measurements, and mathematical vulnerability assessments) and generate a professional fire safety risk assessment and recommendations report.
+Your task is to analyze the following project data for a building and generate a professional fire safety risk assessment and recommendations report.
 
 Here is the building data in JSON format:
 ${JSON.stringify(input, null, 2)}
@@ -250,7 +250,7 @@ export async function sendChatMessage(
   try {
     const systemPrompt = `
 You are an intelligent AI Fire Safety Assistant built into the Protect Scope Emergency Response System.
-Your job is to answer questions about this building, explain risk ratings, prioritize evacuations, and suggest safety improvements based on the current building data (including floor-level physical features, wall thickness, measurements, equipment, and structural safety).
+Your job is to answer questions about this building, explain risk ratings, prioritize evacuations, and suggest safety improvements based on the current building data.
 
 Here is the building data:
 ${JSON.stringify(input, null, 2)}

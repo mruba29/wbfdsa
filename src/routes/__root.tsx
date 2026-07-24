@@ -43,14 +43,27 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
+      <div className="max-w-2xl text-center space-y-4">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        
+        {/* Render exact error details */}
+        <div className="text-left p-4 bg-red-950/50 border border-red-500/40 rounded-xl space-y-2 max-h-[300px] overflow-auto">
+          <p className="font-mono text-xs font-bold text-red-400">
+            {error?.name || "Error"}: {error?.message || String(error)}
+          </p>
+          {error?.stack && (
+            <pre className="font-mono text-[10px] text-red-300/80 whitespace-pre-wrap leading-relaxed">
+              {error.stack}
+            </pre>
+          )}
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
           <button
             onClick={() => {
               router.invalidate();

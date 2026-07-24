@@ -17,66 +17,6 @@ import {
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 
-function parseDXF(dxfText: string) {
-  const lines = dxfText.split(/\r?\n/);
-  const entities: any[] = [];
-  let currentEntity: any = null;
-  let inEntitiesSection = false;
-
-  for (let i = 0; i < lines.length - 1; i += 2) {
-    const code = parseInt(lines[i].trim(), 10);
-    const value = lines[i+1].trim();
-
-    if (code === 0) {
-      if (value === "SECTION") {
-        continue;
-      }
-      if (value === "ENDSEC") {
-        inEntitiesSection = false;
-        continue;
-      }
-      if (inEntitiesSection) {
-        if (currentEntity) {
-          entities.push(currentEntity);
-        }
-        currentEntity = { type: value, points: [], layer: "" };
-      }
-    } else if (code === 2 && value === "ENTITIES") {
-      inEntitiesSection = true;
-    } else if (inEntitiesSection && currentEntity) {
-      if (code === 8) {
-        currentEntity.layer = value;
-      } else if (code === 10) {
-        if (currentEntity.type === "LINE") {
-          currentEntity.x1 = parseFloat(value);
-        } else {
-          currentEntity.points.push({ x: parseFloat(value), y: 0 });
-        }
-      } else if (code === 20) {
-        if (currentEntity.type === "LINE") {
-          currentEntity.y1 = parseFloat(value);
-        } else if (currentEntity.points.length > 0) {
-          currentEntity.points[currentEntity.points.length - 1].y = parseFloat(value);
-        }
-      } else if (code === 11) {
-        currentEntity.x2 = parseFloat(value);
-      } else if (code === 21) {
-        currentEntity.y2 = parseFloat(value);
-      } else if (code === 40) {
-        currentEntity.radius = parseFloat(value);
-      } else if (code === 50) {
-        currentEntity.startAngle = parseFloat(value);
-      } else if (code === 51) {
-        currentEntity.endAngle = parseFloat(value);
-      }
-    }
-  }
-  if (currentEntity) {
-    entities.push(currentEntity);
-  }
-  return entities;
-}
-
 interface Walkthrough3DProps {
   buildingName: string;
   floorLevel: number;
@@ -86,7 +26,6 @@ interface Walkthrough3DProps {
   highlightedElement: string | null;
   onZoneClick: (zone: Zone) => void;
   selectedZone: Zone | null;
-  drawing?: string | null;
 }
 
 export function Walkthrough3D({
@@ -97,81 +36,11 @@ export function Walkthrough3D({
   simulationTime,
   highlightedElement,
   onZoneClick,
-  selectedZone,
-  drawing
+  selectedZone
 }: Walkthrough3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [hoveredRoom, setHoveredRoom] = useState<any | null>(null);
   const [localSelectedRoom, setLocalSelectedRoom] = useState<any | null>(null);
-  
-  const [dxfEntities, setDxfEntities] = useState<any[]>([]);
-  const [dxfBounds, setDxfBounds] = useState<{ cx: number; cy: number; scale: number } | null>(null);
-
-  useEffect(() => {
-    if (!drawing) {
-      setDxfEntities([]);
-      setDxfBounds(null);
-      return;
-    }
-    
-    try {
-      let dxfText = "";
-      if (drawing.startsWith("data:")) {
-        const base64Part = drawing.split(",")[1];
-        dxfText = atob(base64Part);
-      } else if (drawing.startsWith("base64,")) {
-        dxfText = atob(drawing.substring(7));
-      } else {
-        dxfText = drawing;
-      }
-      
-      const parsed = parseDXF(dxfText);
-      if (parsed.length > 0) {
-        let minX = Infinity, maxX = -Infinity;
-        let minY = Infinity, maxY = -Infinity;
-        parsed.forEach(ent => {
-          if (ent.type === "LINE") {
-            if (ent.x1 !== undefined && !isNaN(ent.x1)) {
-              minX = Math.min(minX, ent.x1, ent.x2);
-              maxX = Math.max(maxX, ent.x1, ent.x2);
-              minY = Math.min(minY, ent.y1, ent.y2);
-              maxY = Math.max(maxY, ent.y1, ent.y2);
-            }
-          } else if (ent.points && ent.points.length > 0) {
-            ent.points.forEach((p: any) => {
-              if (p.x !== undefined && !isNaN(p.x)) {
-                minX = Math.min(minX, p.x);
-                maxX = Math.max(maxX, p.x);
-                minY = Math.min(minY, p.y);
-                maxY = Math.max(maxY, p.y);
-              }
-            });
-          }
-        });
-        
-        if (minX !== Infinity) {
-          const w = maxX - minX;
-          const h = maxY - minY;
-          const cx = minX + w / 2;
-          const cy = minY + h / 2;
-          const diag = Math.sqrt(w * w + h * h);
-          const scale = diag > 0 ? 100 / diag : 1.0;
-          setDxfEntities(parsed);
-          setDxfBounds({ cx, cy, scale });
-        } else {
-          setDxfEntities([]);
-          setDxfBounds(null);
-        }
-      } else {
-        setDxfEntities([]);
-        setDxfBounds(null);
-      }
-    } catch (err) {
-      console.error("Error parsing drawing prop in Walkthrough3D:", err);
-      setDxfEntities([]);
-      setDxfBounds(null);
-    }
-  }, [drawing]);
 
   // Fetch fire inventory for this floor level and building
   const floorInventory = useLiveQuery(
@@ -511,69 +380,17 @@ export function Walkthrough3D({
     const dx = 50;
     const dy = 50;
 
-    // Render DXF layout lines
-    const oldDxf = scene.getObjectByName("dxf_floorplan");
-    if (oldDxf) {
-      scene.remove(oldDxf);
-    }
-    if (dxfEntities.length > 0 && dxfBounds) {
-      const lineMaterial = new THREE.LineBasicMaterial({
-        color: 0x475569, // slate-600 for background wall layout lines
-        transparent: true,
-        opacity: 0.7
-      });
-      
-      const dxfGroup = new THREE.Group();
-      dxfGroup.name = "dxf_floorplan";
-      
-      dxfEntities.forEach(ent => {
-        if (ent.type === "LINE") {
-          const x1 = (ent.x1 - dxfBounds.cx) * dxfBounds.scale;
-          const y1 = (ent.y1 - dxfBounds.cy) * dxfBounds.scale;
-          const x2 = (ent.x2 - dxfBounds.cx) * dxfBounds.scale;
-          const y2 = (ent.y2 - dxfBounds.cy) * dxfBounds.scale;
-          
-          const points = [
-            new THREE.Vector3(x1, 0.1, y1),
-            new THREE.Vector3(x2, 0.1, y2)
-          ];
-          const geometry = new THREE.BufferGeometry().setFromPoints(points);
-          const line = new THREE.Line(geometry, lineMaterial);
-          dxfGroup.add(line);
-        } else if (ent.points && ent.points.length >= 2) {
-          const points: THREE.Vector3[] = [];
-          ent.points.forEach((p: any) => {
-            if (p.x !== undefined && p.y !== undefined) {
-              points.push(new THREE.Vector3(
-                (p.x - dxfBounds.cx) * dxfBounds.scale,
-                0.1,
-                (p.y - dxfBounds.cy) * dxfBounds.scale
-              ));
-            }
-          });
-          const geometry = new THREE.BufferGeometry().setFromPoints(points);
-          const line = new THREE.Line(geometry, lineMaterial);
-          dxfGroup.add(line);
-        }
-      });
-      scene.add(dxfGroup);
-    }
-
     // 2. Generate Interactive 3D Rooms & Walls (STEP 2, STEP 4)
     zones.forEach((r) => {
       const roomGroup = new THREE.Group();
       roomGroup.name = r.name;
       roomGroup.userData = { zone: r };
 
-      // Map SVG percentage coord space (0 to 100) or DXF bounds to Three.js (-50 to 50)
-      const width3D = dxfBounds ? r.w * dxfBounds.scale : r.w;
-      const depth3D = dxfBounds ? r.h * dxfBounds.scale : r.h;
-      const px = dxfBounds 
-        ? (r.x + r.w / 2 - dxfBounds.cx) * dxfBounds.scale
-        : r.x + r.w / 2 - dx;
-      const pz = dxfBounds 
-        ? (r.y + r.h / 2 - dxfBounds.cy) * dxfBounds.scale
-        : r.y + r.h / 2 - dy;
+      // Map SVG percentage coord space (0 to 100) to Three.js (-50 to 50)
+      const width3D = r.w;
+      const depth3D = r.h;
+      const px = r.x + r.w / 2 - dx;
+      const pz = r.y + r.h / 2 - dy;
 
       const roomMetrics = getRoomVulnerability(r);
       const isSelected = selectedZone?.id === r.id;
@@ -727,19 +544,10 @@ export function Walkthrough3D({
       }
 
       // 6. Draw safest Evacuation Path Lines (STEP 8)
-      const px_start = px;
-      const pz_start = pz;
-      const px_mid = px;
-      const pz_mid = dxfBounds ? (50 - dxfBounds.cy) * dxfBounds.scale : 50 - dy;
-      const px_end = dxfBounds 
-        ? (r.x < 50 ? 5 - dxfBounds.cx : 95 - dxfBounds.cx) * dxfBounds.scale
-        : (r.x < 50 ? 5 - dx : 95 - dx);
-      const pz_end = dxfBounds ? (50 - dxfBounds.cy) * dxfBounds.scale : 50 - dy;
-
       const pathPoints = [
-        new THREE.Vector3(px_start, 0.4, pz_start),
-        new THREE.Vector3(px_mid, 0.4, pz_mid),
-        new THREE.Vector3(px_end, 0.4, pz_end)
+        new THREE.Vector3(px, 0.4, pz),
+        new THREE.Vector3(px, 0.4, 50 - dy), // corridor axis
+        new THREE.Vector3(r.x < 50 ? 5 - dx : 95 - dx, 0.4, 50 - dy) // exits
       ];
       
       const pathCurve = new THREE.CatmullRomCurve3(pathPoints);
@@ -777,18 +585,8 @@ export function Walkthrough3D({
 
     // 8. Render outer exits & perimeter blockages (STEP 8)
     const exits = [
-      { 
-        id: "ex-1", 
-        px: dxfBounds ? (5 - dxfBounds.cx) * dxfBounds.scale : 5 - dx, 
-        pz: dxfBounds ? (50 - dxfBounds.cy) * dxfBounds.scale : 50 - dy, 
-        blocked: simulationTime >= 90 
-      },
-      { 
-        id: "ex-2", 
-        px: dxfBounds ? (95 - dxfBounds.cx) * dxfBounds.scale : 95 - dx, 
-        pz: dxfBounds ? (50 - dxfBounds.cy) * dxfBounds.scale : 50 - dy, 
-        blocked: false 
-      }
+      { id: "ex-1", px: 5 - dx, pz: 50 - dy, blocked: simulationTime >= 90 },
+      { id: "ex-2", px: 95 - dx, pz: 50 - dy, blocked: false }
     ];
 
     exits.forEach((ex) => {
@@ -832,7 +630,7 @@ export function Walkthrough3D({
         });
       });
     };
-  }, [zones, floorInventory, simulationTime, highlightedElement, selectedZone, dxfEntities, dxfBounds]);
+  }, [zones, floorInventory, simulationTime, highlightedElement, selectedZone]);
 
   return (
     <div className="relative w-full h-full flex flex-col lg:grid lg:grid-cols-[1fr_320px] bg-slate-950 border border-border rounded-2xl overflow-hidden shadow-2xl">
