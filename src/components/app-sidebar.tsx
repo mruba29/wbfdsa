@@ -2,13 +2,12 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Building2,
-  Map,
   Users,
   Flame,
   ShieldAlert,
-  CalendarRange,
   Layers,
   Brain,
+  BarChart3,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 
@@ -20,6 +19,7 @@ const navigationGroups = [
       { to: "/buildings", label: "Building Master", icon: Building2 },
       { to: "/floor-plans", label: "Floor Plans", icon: Layers },
       { to: "/vulnerability", label: "Vulnerability Analytics", icon: ShieldAlert },
+      { to: "/occupancy", label: "Occupancy Analytics", icon: BarChart3 },
       { to: "/personnel", label: "Personnel", icon: Users },
       { to: "/fire-inventory", label: "Fire Inventory", icon: Flame },
       { to: "/simulation", label: "Simulation", icon: Brain },

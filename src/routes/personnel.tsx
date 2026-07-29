@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Search, Trash2, Pencil, X, AlertTriangle, Shield, Activity, Baby, User, Accessibility, HeartPulse, Heart, Users } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, X, AlertTriangle, Shield, Activity, Baby, User, Accessibility, HeartPulse, Heart, Users, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { db, type Personnel, type SpecialNeedCategory, type IVARiskClass } from "@/lib/db";
 import { computeIndividualVulnerability, IVA_RISK_COLORS } from "@/lib/vulnerability";
+import { seedIndianPersonnel } from "@/lib/seed";
+
 
 export const Route = createFileRoute("/personnel")({
   head: () => ({
@@ -105,6 +107,25 @@ function PersonnelPage() {
   const list = useLiveQuery(() => db.personnel.toArray(), []);
   const [editing, setEditing] = useState<Personnel | null>(null);
   const [creating, setCreating] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  useEffect(() => {
+    if (list !== undefined && list.length === 0) {
+      console.log("[WB-FDVA] Personnel table is empty. Auto-seeding Indian personnel records...");
+      seedIndianPersonnel().catch((err) => console.error("Auto-seed error:", err));
+    }
+  }, [list]);
+
+  const handleSeed = async () => {
+    setIsSeeding(true);
+    try {
+      await seedIndianPersonnel();
+    } catch (err) {
+      console.error("Manual seed error:", err);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   const counts = {
     all: list?.length ?? 0,
@@ -170,15 +191,26 @@ function PersonnelPage() {
       title="Personnel"
       subtitle={`${list?.length ?? 0} registered · ${specialNeedsCount} special needs`}
       actions={
-        <button
-          onClick={() => {
-            console.log("Add button clicked!");
-            setCreating(true);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
-        >
-          <Plus className="h-3.5 w-3.5" /> Add
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSeed}
+            disabled={isSeeding}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/80 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
+            title="Populate 50 sample Indian personnel records across all vulnerability categories"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 text-primary ${isSeeding ? "animate-spin" : ""}`} />
+            {isSeeding ? "Seeding..." : "Seed Indian Data"}
+          </button>
+          <button
+            onClick={() => {
+              console.log("Add button clicked!");
+              setCreating(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add
+          </button>
+        </div>
       }
     >
       {/* Stat Cards */}

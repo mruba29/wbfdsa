@@ -38,16 +38,17 @@ export interface RoomBoundary {
 }
 
 export interface FloorStatistics {
+  rooms?: number;
   directExits: number;
   emergencyExits: number;
   doors: number;
   windows: number;
-  distanceToStaircase: string; // e.g. "18 meters"
-  distanceToLift: string;
+  distanceToStaircase: string; // e.g. "12 m"
+  distanceToLift: string; // e.g. "25 m"
   staircases: number;
   lifts: number;
-  maxOccupancy: number;
-  currentOccupancy: number;
+  maxOccupancy?: number;
+  currentOccupancy?: number;
   // CAD-extracted room data
   roomNames?: string[];
   roomBoundaries?: RoomBoundary[];

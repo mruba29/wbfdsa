@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { db } from "@/lib/db";
+import { seedAllModules } from "@/lib/seed";
 import { AppShell } from "@/components/app-shell";
 import {
   Flame,
@@ -39,12 +40,20 @@ function FireInventoryPage() {
   const [selectedFloor, setSelectedFloor] = useState("All Floors");
 
   // Query Database
-  const rawInventory = useLiveQuery(() => db.fireInventory.toArray(), []) ?? [];
+  const rawInventory = useLiveQuery(() => db.fireInventory.toArray(), []);
   const buildings = useLiveQuery(() => db.buildings.toArray(), []) ?? [];
+
+  useEffect(() => {
+    if (rawInventory !== undefined && rawInventory.length === 0) {
+      console.log("[WB-FDVA] Fire inventory table empty. Seeding all modules...");
+      seedAllModules().catch((err) => console.error("Fire inventory seed error:", err));
+    }
+  }, [rawInventory]);
+
 
   // Compute status on the fly based on dates
   const processedInventory = useMemo(() => {
-    return rawInventory.map((item) => {
+    return (rawInventory ?? []).map((item) => {
       const isExpired = new Date() > new Date(item.expiryDate);
       const isMaintenanceDue = new Date() > new Date(item.maintenanceDueDate);
 

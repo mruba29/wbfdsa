@@ -13,6 +13,8 @@ import {
 import { format, subDays, startOfDay, eachDayOfInterval } from "date-fns";
 import { AppShell } from "@/components/app-shell";
 import { db, logActivity } from "@/lib/db";
+import { seedAllModules } from "@/lib/seed";
+
 
 export const Route = createFileRoute("/incidents")({
   head: () => ({
@@ -53,6 +55,14 @@ function IncidentsPage() {
   }, [zones]);
 
   const incidents = useLiveQuery(() => db.incidents.orderBy("startedAt").reverse().toArray(), []);
+
+  useEffect(() => {
+    if (incidents !== undefined && incidents.length === 0) {
+      console.log("[WB-FDVA] Incidents table empty. Auto-seeding all modules...");
+      seedAllModules().catch((err) => console.error("Incidents seed error:", err));
+    }
+  }, [incidents]);
+
 
   // For mapping names dynamically
   const allFloors = useLiveQuery(() => db.floors.toArray(), []);

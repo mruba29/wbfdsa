@@ -174,7 +174,7 @@ function generateSimulator10PointAnalysis(features: ExtractedBuildingFeatures): 
     buildingSummary: `Extracted building layout from '${fileName}' spans a single-tier floor footprint of ${totalArea} m² with ${architectural.roomsCount} enclosed rooms, ${architectural.corridorsCount} primary egress corridors, and ${architectural.fireExitsCount} fire exit enclosures. The structure features ${structural.wallsCount} load-bearing & partition walls (${structural.wallThicknessExteriorMm}mm exterior / ${structural.wallThicknessInteriorMm}mm interior) supported by ${structural.columnsCount} reinforced columns and ${structural.beamsCount} structural ceiling beams under a ${structural.roofType}.`,
 
     architecturalObservations: [
-      `Symmetrical grid layout with ${architectural.columnsCount} structural support columns providing clear structural span.`,
+      `Symmetrical grid layout with ${structural.columnsCount} structural support columns providing clear structural span.`,
       `Egress paths configured with ${architectural.corridorsCount} main corridors maintaining an average width of ${measurements.corridorWidthM}m.`,
       `Vertical circulation consists of ${architectural.staircasesCount} pressurized stairwells and ${architectural.elevatorsCount} elevator shaft.`,
       `Fenestration density includes ${architectural.windowsCount} exterior windows with dimensions averaging ${measurements.windowSizeM}.`,

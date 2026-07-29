@@ -650,7 +650,7 @@ function BuildingsPage() {
                       <div>
                         <h4 className="font-bold text-sm text-foreground">Attach CAD Floor Plan Files</h4>
                         <p className="text-muted-foreground text-[11px]">
-                          Supported formats: .DWG, .DXF, .SVG, .PNG, .PDF
+                          Supported formats: .DWG, .DXF, .SVG, .PNG, .JPG, .JPEG, .PDF
                         </p>
                       </div>
 

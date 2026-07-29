@@ -4,7 +4,10 @@ import { useState } from "react";
 import { ZONE_MULTIPLIER } from "@/lib/vulnerability";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
+import { Save, RefreshCw, Database } from "lucide-react";
+import { seedAllModules } from "@/lib/seed";
+import { syncFullDatabase } from "@/services/dbSync";
+
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -180,25 +183,59 @@ function SettingsPage() {
           </div>
         </Section>
 
-        <Section title="Data Management" description="Local IndexedDB used by this session.">
-          <button
-            onClick={async () => {
-              if (!confirm("This wipes all local data and re-seeds. Continue?")) return;
-              await Promise.all([
-                db.buildings.clear(),
-                db.floors.clear(),
-                db.zones.clear(),
-                db.personnel.clear(),
-                db.incidents.clear(),
-                db.occupancy.clear(),
-                db.activity.clear(),
-              ]);
-              toast.success("Database cleared — reload to re-seed.");
-            }}
-            className="rounded-md border border-risk-red/50 bg-risk-red/10 px-3 py-2 text-xs font-semibold text-risk-red w-full text-center hover:bg-risk-red/20 transition-colors"
-          >
-            Reset Local Database
-          </button>
+        <Section title="Data Management & Google Sheets Sync" description="Manage multi-module database entries and sync with Google Sheets backend.">
+          <div className="space-y-2">
+            <button
+              onClick={async () => {
+                toast.info("Seeding all 9 modules with Indian data...");
+                try {
+                  const res = await seedAllModules();
+                  toast.success(`Seeded ${res.buildings} buildings, ${res.personnel} personnel, ${res.fireInventory} inventory, ${res.incidents} incidents & ${res.occupancy} occupancy events!`);
+                } catch (err: any) {
+                  toast.error("Seeding error: " + (err.message || String(err)));
+                }
+              }}
+              className="rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary w-full text-center hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Seed All Modules & Push to Google Sheets
+            </button>
+
+            <button
+              onClick={async () => {
+                toast.info("Fetching database from Google Sheets...");
+                try {
+                  await syncFullDatabase();
+                  toast.success("Full database synced from Google Sheets!");
+                } catch (err: any) {
+                  toast.error("Sync error: " + (err.message || String(err)));
+                }
+              }}
+              className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-foreground w-full text-center hover:bg-secondary/80 transition-colors flex items-center justify-center gap-2"
+            >
+              <Database className="h-3.5 w-3.5 text-muted-foreground" /> Fetch & Re-Sync from Google Sheets
+            </button>
+
+            <button
+              onClick={async () => {
+                if (!confirm("This wipes all local data and re-seeds all modules. Continue?")) return;
+                await Promise.all([
+                  db.buildings.clear(),
+                  db.floors.clear(),
+                  db.zones.clear(),
+                  db.personnel.clear(),
+                  db.incidents.clear(),
+                  db.occupancy.clear(),
+                  db.fireInventory.clear(),
+                  db.activity.clear(),
+                ]);
+                await seedAllModules();
+                toast.success("Database reset & re-seeded across all modules.");
+              }}
+              className="rounded-md border border-risk-red/50 bg-risk-red/10 px-3 py-2 text-xs font-semibold text-risk-red w-full text-center hover:bg-risk-red/20 transition-colors"
+            >
+              Reset Local Database
+            </button>
+          </div>
         </Section>
       </div>
     </AppShell>

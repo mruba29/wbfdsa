@@ -90,18 +90,21 @@ export async function syncExtractedFeaturesToWBFDVA(
       await db.fireInventory.bulkDelete(existingInventory.map((i) => i.id!));
     }
 
-    const inventoryToInsert: Omit<FireInventory, "id">[] = features.extractedEquipmentList.map((eq) => ({
-      serialNumber: eq.serialNumber,
+    const inventoryToInsert: Omit<FireInventory, "id">[] = features.extractedEquipmentList.map((eq, idx) => ({
+      inventoryId: `EQ-AUTO-${idx + 1}`,
+      equipmentName: `${eq.type} (${eq.serialNumber || idx + 1})`,
       equipmentType: eq.type as any,
       building: bName,
       floor: `Floor ${floorLevel}`,
       zoneRoom: eq.roomName,
-      status: eq.status,
+      quantity: 1,
+      installationDate: new Date().toISOString().split("T")[0],
       lastInspectionDate: new Date().toISOString().split("T")[0],
       expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      assignedTechnician: "AI Auto-Auditor",
-      x: eq.x,
-      y: eq.y,
+      maintenanceDueDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      status: eq.status as any,
+      assignedMaintenanceTeam: "AI Auto-Auditor",
+      remarks: "Extracted from CAD drawing",
     }));
 
     await db.fireInventory.bulkAdd(inventoryToInsert as any);
@@ -129,7 +132,9 @@ export async function syncExtractedFeaturesToWBFDVA(
     }
 
     // 6. Recalculate Vulnerability Assessment
-    const buildingAssessment = await assessBuilding(buildingId);
+    const bFloors = await db.floors.where("buildingId").equals(buildingId).toArray();
+    const bZones = await db.zones.where("buildingId").equals(buildingId).toArray();
+    const buildingAssessment = assessBuilding(bZones, bFloors, null);
 
     toast.success(
       `Extracted ${features.extractedRoomsList.length} rooms & ${features.extractedEquipmentList.length} fire gear items into WB-FDVA!`
