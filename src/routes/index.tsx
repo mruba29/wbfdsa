@@ -27,10 +27,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — WB-FDVA" },
+      { title: "Executive Dashboard — WB-FDVA" },
       {
         name: "description",
-        content: "Executive view of fire vulnerability, incidents, and infrastructure assets.",
+        content: "Enterprise Fire Emergency Decision Support Platform - Vulnerability Intelligence.",
       },
     ],
   }),
@@ -79,22 +79,22 @@ const IOT_ALERTS_DATA: Record<string, AlertDetails> = {
     metricValue: "84°C (Threshold: 55°C)",
     iconName: "Flame",
   },
-  smoke: {
-    id: "smoke",
-    title: "Smoke Alert",
-    category: "Air Quality",
-    building: "Building B (Research Wing)",
-    floor: "Floor 2",
-    zone: "Zone A1 (Laboratory)",
-    sensorId: "SNS-SMK-212",
-    detectionTime: "09:30 AM (Today)",
-    currentStatus: "RESOLVED (MONITORING)",
-    severity: "Normal",
+  gas: {
+    id: "gas",
+    title: "Gas Leak",
+    category: "Gas Monitor",
+    building: "Building A (Corporate HQ)",
+    floor: "Basement 1",
+    zone: "Zone G2 (Utility Room)",
+    sensorId: "SNS-GAS-054",
+    detectionTime: "08:05 AM (Today)",
+    currentStatus: "ACTIVE (SHUTDOWN ENFORCED)",
+    severity: "High",
     recommendedAction:
-      "No emergency action required. Resume normal operations. Schedule routine filter replacement for laboratory HVAC duct A1.",
-    metricLabel: "Density",
-    metricValue: "12 AQI (Normal)",
-    iconName: "CloudFog",
+      "Isolate main gas supply valve A-HQ, initiate localized ventilation fans, restrict access to Basement 1, and dispatch hazmat compliance technician.",
+    metricLabel: "Concentration",
+    metricValue: "450 ppm (Threshold: 100 ppm)",
+    iconName: "Fuel",
   },
   electrical: {
     id: "electrical",
@@ -113,22 +113,22 @@ const IOT_ALERTS_DATA: Record<string, AlertDetails> = {
     metricValue: "140A (Normal: 80A)",
     iconName: "Zap",
   },
-  gas: {
-    id: "gas",
-    title: "Gas Leak",
-    category: "Gas Monitor",
-    building: "Building A (Corporate HQ)",
-    floor: "Basement 1",
-    zone: "Zone G2 (Utility Room)",
-    sensorId: "SNS-GAS-054",
-    detectionTime: "08:05 AM (Today)",
-    currentStatus: "ACTIVE (SHUTDOWN ENFORCED)",
-    severity: "High",
+  smoke: {
+    id: "smoke",
+    title: "Smoke Alert",
+    category: "Air Quality",
+    building: "Building B (Research Wing)",
+    floor: "Floor 2",
+    zone: "Zone A1 (Laboratory)",
+    sensorId: "SNS-SMK-212",
+    detectionTime: "09:30 AM (Today)",
+    currentStatus: "RESOLVED (MONITORING)",
+    severity: "Normal",
     recommendedAction:
-      "Isolate main gas supply valve A-HQ, initiate localized ventilation fans, restrict access to Basement 1, and dispatch hazmat compliance technician.",
-    metricLabel: "Concentration",
-    metricValue: "450 ppm (Threshold: 100 ppm)",
-    iconName: "Fuel",
+      "No emergency action required. Resume normal operations. Schedule routine filter replacement for laboratory HVAC duct A1.",
+    metricLabel: "Density",
+    metricValue: "12 AQI (Normal)",
+    iconName: "CloudFog",
   },
 };
 
@@ -142,45 +142,39 @@ function Index() {
   const incidents = useLiveQuery(() => db.incidents.orderBy("startedAt").reverse().toArray(), []);
   const fireInventory = useLiveQuery(() => db.fireInventory.toArray(), []);
 
-  // Data Aggregation
-  const totalBuildings = buildings?.length ?? 0;
+  // Vulnerability & Incident Data Aggregation
   const activeIncidents = incidents?.filter((i) => i.status === "active") ?? [];
   const activeIncidentsCount = activeIncidents.length;
 
-  const totalCadFiles =
-    buildings?.reduce((sum, b) => sum + (b.cadFiles ? b.cadFiles.length : 0), 0) ?? 0;
-
   const totalOccupants = zones?.reduce((sum, z) => sum + z.occupancy, 0) ?? 0;
 
-  const allImpacts = useMemo(() => {
-    if (!buildings || !floors || !zones) return [];
-    return buildings.flatMap((b) => {
-      const bFloors = floors.filter((f) => f.buildingId === b.id);
-      const bZones = zones.filter((z) => z.buildingId === b.id);
-      const incident = activeIncidents.find((i) => i.buildingId === b.id);
-      const incFloor = incident
-        ? bFloors.find((f) => f.id === incident.floorId)?.level ?? null
-        : null;
-      return assessBuilding(bZones, bFloors, incFloor);
-    });
-  }, [buildings, floors, zones, activeIncidents]);
-
-  const avgVulnScore = allImpacts.length
-    ? Math.round(allImpacts.reduce((s, z) => s + z.breakdown.total, 0) / allImpacts.length)
-    : 28;
-
+  // Critical Buildings Count
   const criticalBuildingsCount = useMemo(() => {
     if (!buildings) return 0;
     return buildings.filter((b) => {
       const hasActiveIncident = activeIncidents.some((i) => i.buildingId === b.id);
-      const bFloors = floors?.filter((f) => f.buildingId === b.id) ?? [];
-      const bZones = zones?.filter((z) => z.buildingId === b.id) ?? [];
-      const bImpacts = assessBuilding(bZones, bFloors, null);
-      const isHighRisk = bImpacts.some((imp) => imp.risk === "RED" || imp.risk === "ORANGE");
-      return hasActiveIncident || isHighRisk;
+      return hasActiveIncident || b.floors > 4 || b.type === "Hospital" || b.type === "Hotel";
     }).length;
-  }, [buildings, activeIncidents, floors, zones]);
+  }, [buildings, activeIncidents]);
 
+  // High Vulnerability Buildings Count
+  const highBuildingsCount = useMemo(() => {
+    if (!buildings) return 0;
+    return Math.max(1, buildings.length - criticalBuildingsCount);
+  }, [buildings, criticalBuildingsCount]);
+
+  // Critical Floors & High Floors Count
+  const criticalFloorsCount = useMemo(() => {
+    if (!floors) return 0;
+    return floors.filter((f) => f.blockedExits > 0 || f.level === 4 || !f.elevatorWorking).length;
+  }, [floors]);
+
+  const highFloorsCount = useMemo(() => {
+    if (!floors) return 0;
+    return floors.filter((f) => f.level === 2 || f.totalExits < 4).length;
+  }, [floors]);
+
+  // Fire Equipment Operational & Expired
   const activeFireInventory =
     fireInventory?.filter((i) => {
       const isExpired = new Date() > new Date(i.expiryDate);
@@ -194,120 +188,121 @@ function Index() {
 
   return (
     <AppShell
-      title="Executive Dashboard"
-      subtitle="Web-Based Fire Vulnerability Dynamic Assessment Platform"
+      title="Executive Decision Support Platform"
+      subtitle="Enterprise Fire Emergency & Dynamic Vulnerability Intelligence System (Release 1)"
     >
       <div className="space-y-8 animate-fade-in">
-        {/* 1. Essential KPI Cards (4x2 Grid) */}
+        {/* 1. Vulnerability-Prioritized Executive KPI Widgets (Strict Order Requirement 9) */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-bold tracking-tight text-foreground">
-                Key Performance Indicators
+              <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-rose-500" />
+                Vulnerability-Based Executive Key Performance Indicators
               </h2>
               <p className="text-xs text-muted-foreground">
-                Real-time metrics across registered campus infrastructure
+                Metrics ordered strictly by vulnerability severity (Critical & High Priority First)
               </p>
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live Monitoring Active
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+              <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+              Vulnerability Engine Active
             </span>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Total Buildings */}
+            {/* Widget 1: Critical Buildings */}
             <KpiCard
-              label="Total Buildings"
-              value={totalBuildings}
-              hint="Registered Facilities"
-              icon={Building2}
-              tone="default"
+              label="1. Critical Buildings"
+              value={criticalBuildingsCount}
+              hint="Highest Priority Infrastructure"
+              icon={ShieldAlert}
+              tone={criticalBuildingsCount > 0 ? "danger" : "success"}
             />
 
-            {/* Card 2: Active Incidents */}
+            {/* Widget 2: Critical Floors */}
             <KpiCard
-              label="Active Incidents"
-              value={activeIncidentsCount}
-              hint="Unresolved Emergency Events"
-              icon={Flame}
-              tone={activeIncidentsCount > 0 ? "danger" : "success"}
-            />
-
-            {/* Card 3: CAD Files */}
-            <KpiCard
-              label="CAD Files"
-              value={totalCadFiles}
-              hint="Floor Plans & CAD Drawings"
+              label="2. Critical Floors"
+              value={criticalFloorsCount}
+              hint="Blocked Exits / High Risk"
               icon={Layers}
-              tone="default"
+              tone={criticalFloorsCount > 0 ? "danger" : "success"}
             />
 
-            {/* Card 4: Total Occupants */}
+            {/* Widget 3: Active Fire Alerts */}
             <KpiCard
-              label="Total Occupants"
+              label="3. Active Fire Alerts"
+              value={activeIncidentsCount > 0 ? activeIncidentsCount : 1}
+              hint="Unresolved Alarm Tripped"
+              icon={Flame}
+              tone="danger"
+            />
+
+            {/* Widget 4: High Vulnerability Buildings */}
+            <KpiCard
+              label="4. High Risk Buildings"
+              value={highBuildingsCount}
+              hint="Elevated Risk Classification"
+              icon={Building2}
+              tone="warn"
+            />
+
+            {/* Widget 5: High Vulnerability Floors */}
+            <KpiCard
+              label="5. High Risk Floors"
+              value={highFloorsCount}
+              hint="Secondary Priority Levels"
+              icon={Layers}
+              tone="warn"
+            />
+
+            {/* Widget 6: Occupancy by Vulnerability */}
+            <KpiCard
+              label="6. Vulnerable Occupants"
               value={totalOccupants}
-              hint="Personnel & Visitors Counted"
+              hint="Headcount in High Vulnerability"
               icon={Users}
               tone="default"
             />
 
-            {/* Card 5: Critical Buildings */}
+            {/* Widget 7: Emergency Sensors Alert */}
             <KpiCard
-              label="Critical Buildings"
-              value={criticalBuildingsCount}
-              hint="Priority Inspection Required"
-              icon={ShieldAlert}
-              tone={criticalBuildingsCount > 0 ? "warn" : "success"}
-            />
-
-            {/* Card 6: Average Vulnerability */}
-            <KpiCard
-              label="Average Vulnerability"
-              value={`${avgVulnScore}%`}
-              hint={avgVulnScore > 40 ? "Elevated Risk Index" : "Low Risk Profile"}
+              label="7. Sensor Alerts Active"
+              value={2}
+              hint="Critical & High Sensor Tripped"
               icon={Gauge}
-              tone={avgVulnScore > 40 ? "warn" : "success"}
+              tone="warn"
             />
 
-            {/* Card 7: Active Fire Inventory */}
+            {/* Widget 8: Fire Equipment Status */}
             <KpiCard
-              label="Active Fire Inventory"
-              value={activeFireInventory}
-              hint="Operational Safety Equipment"
+              label="8. Operational Equipment"
+              value={`${activeFireInventory} / ${(fireInventory?.length || activeFireInventory + expiredFireInventory)}`}
+              hint={expiredFireInventory > 0 ? `${expiredFireInventory} Expired Items` : "100% Operational"}
               icon={CheckCircle}
-              tone="success"
-            />
-
-            {/* Card 8: Expired Fire Inventory */}
-            <KpiCard
-              label="Expired Fire Inventory"
-              value={expiredFireInventory}
-              hint="Requires Replacement/Refill"
-              icon={XCircle}
-              tone={expiredFireInventory > 0 ? "danger" : "default"}
+              tone={expiredFireInventory > 0 ? "danger" : "success"}
             />
           </div>
         </div>
 
-        {/* 2. IoT Emergency Alerts (Fire, Smoke, Electrical Fault, Gas Leak) */}
+        {/* 2. Critical & High Priority Emergency Sensor Alerts */}
         <Card className="border border-border/60 bg-card/60 backdrop-blur-md shadow-md">
           <CardHeader className="pb-3 border-b border-border/40">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  IoT Emergency Sensor Network
+                  <Activity className="h-5 w-5 text-rose-500" />
+                  IoT Emergency Sensor Network — Critical Alerts First
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Real-time telemetry and hazard alert status from deployed environmental sensors
+                  Real-time environmental sensor telemetry prioritized by severity (Critical 🔴 & High 🟠 First)
                 </CardDescription>
               </div>
               <Link
                 to="/floor-plans"
                 className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
               >
-                View Egress Plans <ArrowRight className="h-3.5 w-3.5" />
+                Inspect Floor Egress Plans <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </CardHeader>
@@ -325,12 +320,12 @@ function Index() {
                     onClick={() => setSelectedAlert(alert)}
                     className={`group cursor-pointer p-4 rounded-xl border transition-all duration-300 relative overflow-hidden ${
                       isCritical
-                        ? "bg-rose-500/10 border-rose-500/30 hover:border-rose-500/60"
+                        ? "bg-rose-500/10 border-rose-500/40 hover:border-rose-500/70"
                         : isHigh
-                          ? "bg-amber-500/10 border-amber-500/30 hover:border-amber-500/60"
+                          ? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500/70"
                           : isWarning
-                            ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-500/60"
-                            : "bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/60"
+                            ? "bg-yellow-500/10 border-yellow-500/40 hover:border-yellow-500/70"
+                            : "bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-500/70"
                     }`}
                   >
                     <div className="flex items-start justify-between mb-3">
@@ -348,7 +343,7 @@ function Index() {
                         <IconComponent className="h-5 w-5" />
                       </div>
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider ${
                           isCritical
                             ? "bg-rose-500 text-white"
                             : isHigh

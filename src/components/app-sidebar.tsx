@@ -13,16 +13,13 @@ import { useApp } from "@/lib/store";
 
 const navigationGroups = [
   {
-    label: "Main Navigation",
+    label: "Enterprise Platform",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/", label: "Executive Dashboard", icon: LayoutDashboard },
       { to: "/buildings", label: "Building Master", icon: Building2 },
       { to: "/floor-plans", label: "Floor Plans", icon: Layers },
       { to: "/vulnerability", label: "Vulnerability Analytics", icon: ShieldAlert },
-      { to: "/occupancy", label: "Occupancy Analytics", icon: BarChart3 },
-      { to: "/personnel", label: "Personnel", icon: Users },
-      { to: "/fire-inventory", label: "Fire Inventory", icon: Flame },
-      { to: "/simulation", label: "Simulation", icon: Brain },
+      { to: "/personnel", label: "Personnel Management", icon: Users },
     ],
   },
 ];

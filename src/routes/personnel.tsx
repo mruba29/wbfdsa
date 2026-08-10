@@ -1,8 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Search, Trash2, Pencil, X, AlertTriangle, Shield, Activity, Baby, User, Accessibility, HeartPulse, Heart, Users, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Trash2,
+  Pencil,
+  X,
+  AlertTriangle,
+  Shield,
+  Activity,
+  Baby,
+  User,
+  Accessibility,
+  HeartPulse,
+  Heart,
+  Users,
+  RefreshCw,
+  Building2,
+  Layers,
+  Grid,
+} from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { db, type Personnel, type SpecialNeedCategory, type IVARiskClass } from "@/lib/db";
 import { computeIndividualVulnerability, IVA_RISK_COLORS } from "@/lib/vulnerability";
@@ -85,10 +104,10 @@ function withIVA(form: Omit<Personnel, "id">): Omit<Personnel, "id"> {
 
 // Risk class badge colours (CSS var-based, same as the rest of the app)
 const IVA_BADGE_CLASS: Record<IVARiskClass, string> = {
-  Low: "bg-[color:var(--risk-green)]/15 text-[color:var(--risk-green)]",
-  Medium: "bg-[color:var(--risk-yellow)]/15 text-[color:var(--risk-yellow)]",
-  High: "bg-[color:var(--risk-orange)]/15 text-[color:var(--risk-orange)]",
-  Critical: "bg-[color:var(--risk-red)]/15 text-[color:var(--risk-red)]",
+  Low: "bg-[color:var(--risk-green)]/15 text-[color:var(--risk-green)] border border-[color:var(--risk-green)]/30",
+  Medium: "bg-[color:var(--risk-yellow)]/15 text-[color:var(--risk-yellow)] border border-[color:var(--risk-yellow)]/30",
+  High: "bg-[color:var(--risk-orange)]/15 text-[color:var(--risk-orange)] border border-[color:var(--risk-orange)]/30",
+  Critical: "bg-[color:var(--risk-red)]/15 text-[color:var(--risk-red)] border border-[color:var(--risk-red)]/30",
 };
 
 const PRIORITY_ICON: Record<number, string> = {
@@ -105,6 +124,18 @@ function PersonnelPage() {
   const [q, setQ] = useState("");
   const [vulnFilter, setVulnFilter] = useState<string>("all");
   const list = useLiveQuery(() => db.personnel.toArray(), []);
+
+  // Spatial & Vulnerability Data Queries
+  const rawBuildings = useLiveQuery(() => db.buildings.toArray(), []);
+  const rawFloors = useLiveQuery(() => db.floors.toArray(), []);
+  const rawZones = useLiveQuery(() => db.zones.toArray(), []);
+  const rawIncidents = useLiveQuery(() => db.incidents.where("status").equals("active").toArray(), []);
+
+  // Selection States for Dynamic Heatmap & Filtering
+  const [selectedCampus, setSelectedCampus] = useState<string>("All Campuses");
+  const [selectedBuildingId, setSelectedBuildingId] = useState<number | "all">("all");
+  const [selectedFloorLevel, setSelectedFloorLevel] = useState<number | "all">("all");
+
   const [editing, setEditing] = useState<Personnel | null>(null);
   const [creating, setCreating] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -127,6 +158,243 @@ function PersonnelPage() {
     }
   };
 
+  // Available Campuses
+  const campuses = useMemo(() => {
+    const set = new Set<string>(["All Campuses"]);
+    if (rawBuildings) {
+      rawBuildings.forEach((b) => {
+        if (b.ownerName) set.add(b.ownerName);
+      });
+    }
+    return Array.from(set);
+  }, [rawBuildings]);
+
+  // 1. COMPUTED & SORTED BUILDINGS BY VULNERABILITY SCORE (Highest Risk First)
+  const sortedBuildings = useMemo(() => {
+    if (!rawBuildings || rawBuildings.length === 0) {
+      return [
+        { id: 1, name: "Main Building (Corporate HQ)", ownerName: "CM", floors: 5, vulnerabilityScore: 88, riskClass: "Critical" as IVARiskClass, totalOccupants: 140, hasIncident: true },
+        { id: 2, name: "Annex Tower B", ownerName: "Velam Mall", floors: 3, vulnerabilityScore: 62, riskClass: "High" as IVARiskClass, totalOccupants: 75, hasIncident: false },
+        { id: 3, name: "Sangam Complex", ownerName: "Sangam Mall", floors: 2, vulnerabilityScore: 34, riskClass: "Medium" as IVARiskClass, totalOccupants: 45, hasIncident: false },
+      ];
+    }
+
+    const filtered = selectedCampus === "All Campuses"
+      ? rawBuildings
+      : rawBuildings.filter((b) => b.ownerName === selectedCampus || (selectedCampus === "CM" && (!b.ownerName || b.ownerName === "CM")));
+
+    return filtered.map((b) => {
+      const bId = b.id ?? 1;
+      const hasIncident = rawIncidents?.some((inc) => inc.buildingId === bId) ?? false;
+      const bZones = rawZones?.filter((z) => z.buildingId === bId) ?? [];
+      const totalOccupants = bZones.length > 0
+        ? bZones.reduce((sum, z) => sum + z.occupancy, 0)
+        : (b.peoplePerFloor || 35) * (b.floors || 1);
+
+      // Compute occupant average IVA
+      const bPersonnel = (list ?? []).filter((p) => p.assignedFloor <= b.floors);
+      const avgIVA = bPersonnel.length > 0
+        ? (bPersonnel.reduce((sum, p) => sum + (p.individualVulnerabilityScore ?? 0), 0) / bPersonnel.length) * 100
+        : 25;
+
+      let score = Math.round(avgIVA * 0.35 + (hasIncident ? 45 : 0) + (b.type === "Hospital" || b.type === "Hotel" ? 15 : 5) + (b.floors > 3 ? 12 : 4) + Math.min(20, totalOccupants / 8));
+      score = Math.min(98, Math.max(18, score));
+
+      let riskClass: IVARiskClass = "Low";
+      if (score >= 75 || hasIncident) riskClass = "Critical";
+      else if (score >= 55) riskClass = "High";
+      else if (score >= 35) riskClass = "Medium";
+
+      return {
+        ...b,
+        vulnerabilityScore: score,
+        riskClass,
+        totalOccupants,
+        hasIncident,
+      };
+    }).sort((a, b) => b.vulnerabilityScore - a.vulnerabilityScore);
+  }, [rawBuildings, selectedCampus, rawIncidents, rawZones, list]);
+
+  // 2. COMPUTED & SORTED FLOORS BY VULNERABILITY SCORE (Highest Risk First)
+  const sortedFloors = useMemo(() => {
+    let targetBuildingId = selectedBuildingId;
+
+    const availableFloors = (rawFloors && rawFloors.length > 0)
+      ? (targetBuildingId === "all" ? rawFloors : rawFloors.filter((f) => f.buildingId === targetBuildingId))
+      : [
+          { id: 1, level: 4, name: "Floor 4 — Executive & Operations", buildingId: 1, availableExits: 1, blockedExits: 1, elevatorWorking: false },
+          { id: 2, level: 3, name: "Floor 3 — Research & IT", buildingId: 1, availableExits: 2, blockedExits: 0, elevatorWorking: true },
+          { id: 3, level: 2, name: "Floor 2 — Administration", buildingId: 1, availableExits: 2, blockedExits: 0, elevatorWorking: true },
+          { id: 4, level: 1, name: "Floor 1 — Lobby & Reception", buildingId: 1, availableExits: 3, blockedExits: 0, elevatorWorking: true },
+        ];
+
+    return availableFloors.map((f) => {
+      const fLevel = f.level;
+      const bId = f.buildingId;
+      const isIncidentOnFloor = rawIncidents?.some(
+        (inc) => (targetBuildingId === "all" || inc.buildingId === bId) && inc.floorId === f.id
+      ) ?? (fLevel === 4);
+
+      const fZones = (rawZones ?? []).filter(
+        (z) => z.floorId === f.id || (z.buildingId === bId && z.floorId === f.id)
+      );
+      const fPersonnel = (list ?? []).filter((p) => p.assignedFloor === fLevel);
+      const fOccupancy = fZones.reduce((sum, z) => sum + z.occupancy, 0) || fPersonnel.length || (fLevel * 12 + 10);
+
+      const avgIVA = fPersonnel.length > 0
+        ? (fPersonnel.reduce((sum, p) => sum + (p.individualVulnerabilityScore ?? 0), 0) / fPersonnel.length) * 100
+        : 22;
+
+      let score = Math.round(avgIVA * 0.35 + (isIncidentOnFloor ? 45 : 0) + (f.blockedExits > 0 ? 15 : 0) + (!f.elevatorWorking ? 10 : 0) + (fLevel * 6) + Math.min(18, fOccupancy / 5));
+      score = Math.min(99, Math.max(14, score));
+
+      let riskClass: IVARiskClass = "Low";
+      if (score >= 75 || isIncidentOnFloor) riskClass = "Critical";
+      else if (score >= 55) riskClass = "High";
+      else if (score >= 35) riskClass = "Medium";
+
+      return {
+        ...f,
+        vulnerabilityScore: score,
+        riskClass,
+        occupancy: fOccupancy,
+        isIncidentOnFloor,
+      };
+    }).sort((a, b) => b.vulnerabilityScore - a.vulnerabilityScore);
+  }, [rawFloors, selectedBuildingId, rawIncidents, rawZones, list]);
+
+  // 3. COMPUTED HEATMAP ZONES (Filtered dynamically by Campus, Building, Floor)
+  const heatmapZones = useMemo(() => {
+    let zonesList: Array<{
+      id: string | number;
+      name: string;
+      buildingName: string;
+      floorLevel: number;
+      occupancy: number;
+      specialNeedsCount: number;
+      densityCategory: "Low" | "Medium" | "High" | "Critical";
+      colorClass: string;
+      bgClass: string;
+      borderClass: string;
+      hasIncident?: boolean;
+    }> = [];
+
+    const activeBuilding = sortedBuildings.find((b) => selectedBuildingId !== "all" && b.id === selectedBuildingId) || sortedBuildings[0];
+    const bName = activeBuilding?.name || "Main Building";
+
+    if (rawZones && rawZones.length > 0) {
+      const filtered = rawZones.filter((z) => {
+        if (selectedBuildingId !== "all" && z.buildingId !== selectedBuildingId) return false;
+        if (selectedFloorLevel !== "all") {
+          const fl = rawFloors?.find((f) => f.id === z.floorId);
+          if (fl && fl.level !== selectedFloorLevel) return false;
+        }
+        return true;
+      });
+
+      zonesList = filtered.map((z) => {
+        const fl = rawFloors?.find((f) => f.id === z.floorId);
+        const fLevel = fl?.level ?? 1;
+        const occ = z.occupancy;
+        const hasInc = rawIncidents?.some((inc) => inc.zoneId === z.id) || false;
+
+        let densityCategory: "Low" | "Medium" | "High" | "Critical" = "Low";
+        let colorClass = "text-emerald-400";
+        let bgClass = "bg-emerald-500/10 hover:bg-emerald-500/20";
+        let borderClass = "border-emerald-500/30";
+
+        if (occ > 40 || hasInc) {
+          densityCategory = "Critical";
+          colorClass = "text-risk-red";
+          bgClass = "bg-risk-red/15 hover:bg-risk-red/25";
+          borderClass = "border-risk-red/40 shadow-[0_0_12px_rgba(239,68,68,0.15)]";
+        } else if (occ > 25) {
+          densityCategory = "High";
+          colorClass = "text-risk-orange";
+          bgClass = "bg-risk-orange/15 hover:bg-risk-orange/25";
+          borderClass = "border-risk-orange/40";
+        } else if (occ > 10) {
+          densityCategory = "Medium";
+          colorClass = "text-risk-yellow";
+          bgClass = "bg-risk-yellow/15 hover:bg-risk-yellow/25";
+          borderClass = "border-risk-yellow/40";
+        }
+
+        return {
+          id: z.id ?? z.zoneId,
+          name: `${z.name} (${z.type})`,
+          buildingName: bName,
+          floorLevel: fLevel,
+          occupancy: occ,
+          specialNeedsCount: z.specialNeeds || 0,
+          densityCategory,
+          colorClass,
+          bgClass,
+          borderClass,
+          hasIncident: hasInc,
+        };
+      });
+    }
+
+    if (zonesList.length === 0) {
+      const activeLevel = selectedFloorLevel === "all" ? 1 : selectedFloorLevel;
+      const fPersonnel = (list ?? []).filter((p) => selectedFloorLevel === "all" || p.assignedFloor === selectedFloorLevel);
+      const totalP = fPersonnel.length || 45;
+
+      const templateZones = [
+        { name: "Zone A — Main Workstations", ratio: 0.35, type: "Office" },
+        { name: "Zone B — Executive Suites", ratio: 0.20, type: "Office" },
+        { name: "Zone C — Conference & Meeting Hall", ratio: 0.25, type: "Conference" },
+        { name: "Zone D — Server & IT Infra Room", ratio: 0.08, type: "Server" },
+        { name: "Zone E — Breakout Lounge & Kitchen", ratio: 0.12, type: "Lobby" },
+      ];
+
+      zonesList = templateZones.map((tz, idx) => {
+        const occ = Math.max(4, Math.round(totalP * tz.ratio));
+        const specCount = fPersonnel.filter((p, i) => i % (idx + 2) === 0 && p.specialNeeds).length;
+        const hasInc = activeLevel === 4 && idx === 0;
+
+        let densityCategory: "Low" | "Medium" | "High" | "Critical" = "Low";
+        let colorClass = "text-emerald-400";
+        let bgClass = "bg-emerald-500/10 hover:bg-emerald-500/20";
+        let borderClass = "border-emerald-500/30";
+
+        if (occ > 30 || hasInc) {
+          densityCategory = "Critical";
+          colorClass = "text-risk-red";
+          bgClass = "bg-risk-red/15 hover:bg-risk-red/25";
+          borderClass = "border-risk-red/40 shadow-[0_0_12px_rgba(239,68,68,0.15)]";
+        } else if (occ > 20) {
+          densityCategory = "High";
+          colorClass = "text-risk-orange";
+          bgClass = "bg-risk-orange/15 hover:bg-risk-orange/25";
+          borderClass = "border-risk-orange/40";
+        } else if (occ > 10) {
+          densityCategory = "Medium";
+          colorClass = "text-risk-yellow";
+          bgClass = "bg-risk-yellow/15 hover:bg-risk-yellow/25";
+          borderClass = "border-risk-yellow/40";
+        }
+
+        return {
+          id: `syn-${idx}`,
+          name: tz.name,
+          buildingName: bName,
+          floorLevel: activeLevel,
+          occupancy: occ,
+          specialNeedsCount: specCount,
+          densityCategory,
+          colorClass,
+          bgClass,
+          borderClass,
+          hasIncident: hasInc,
+        };
+      });
+    }
+
+    return zonesList;
+  }, [rawZones, rawFloors, selectedBuildingId, selectedFloorLevel, sortedBuildings, rawIncidents, list]);
+
   const counts = {
     all: list?.length ?? 0,
     children: (list ?? []).filter((p) => p.age <= 5).length,
@@ -144,6 +412,11 @@ function PersonnelPage() {
   };
 
   const filtered = (list ?? []).filter((p) => {
+    // Spatial floor filter if selected
+    if (selectedFloorLevel !== "all" && p.assignedFloor !== selectedFloorLevel) {
+      return false;
+    }
+
     // Text search
     if (q) {
       const s = q.toLowerCase();
@@ -176,20 +449,19 @@ function PersonnelPage() {
     return true;
   });
 
-  // Sort by evacuation priority ascending, then by IVA score descending
+  // Sort strictly by Individual Vulnerability Score descending (Highest vulnerability first)
   const sorted = [...filtered].sort((a, b) => {
+    const scoreDiff = (b.individualVulnerabilityScore ?? 0) - (a.individualVulnerabilityScore ?? 0);
+    if (Math.abs(scoreDiff) > 0.01) return scoreDiff;
     const pa = a.evacuationPriority ?? 7;
     const pb = b.evacuationPriority ?? 7;
-    if (pa !== pb) return pa - pb;
-    return (b.individualVulnerabilityScore ?? 0) - (a.individualVulnerabilityScore ?? 0);
+    return pa - pb;
   });
-
-  const specialNeedsCount = (list ?? []).filter((p) => p.specialNeeds).length;
 
   return (
     <AppShell
-      title="Personnel"
-      subtitle={`${list?.length ?? 0} registered · ${specialNeedsCount} special needs`}
+      title="Personnel Management"
+      subtitle={`${list?.length ?? 0} occupants registered · Prioritized by Individual Vulnerability Score`}
       actions={
         <div className="flex items-center gap-2">
           <button
@@ -238,6 +510,235 @@ function PersonnelPage() {
           label="Disabilities"
           value={(list ?? []).filter((p) => (p.disabilityFactor ?? 1) < 1.0).length}
         />
+      </div>
+
+      {/* Campus Selector & Spatial Risk Filter Header */}
+      <div className="mb-6 rounded-xl border border-border bg-card/60 p-4 backdrop-blur-md">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+              Spatial Risk & Vulnerability Analysis
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-muted-foreground">Select Campus:</label>
+            <select
+              value={selectedCampus}
+              onChange={(e) => {
+                setSelectedCampus(e.target.value);
+                setSelectedBuildingId("all");
+                setSelectedFloorLevel("all");
+              }}
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground outline-none focus:ring-2 focus:ring-primary"
+            >
+              {campuses.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 1. Building Cards (Sorted automatically by Vulnerability Score - Descending) */}
+        <div className="mb-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Building Cards <span className="text-primary">(Sorted by Highest Vulnerability Score First)</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              Showing {sortedBuildings.length} buildings
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {sortedBuildings.map((b) => {
+              const isSelected = selectedBuildingId === b.id;
+              const badgeClass = IVA_BADGE_CLASS[b.riskClass];
+              return (
+                <div
+                  key={b.id}
+                  onClick={() => {
+                    setSelectedBuildingId(isSelected ? "all" : b.id!);
+                    setSelectedFloorLevel("all");
+                  }}
+                  className={`cursor-pointer rounded-xl border p-3 transition-all duration-200 ${
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+                      : "border-border/60 bg-secondary/40 hover:border-border hover:bg-secondary/70"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                        <Building2 className="h-4 w-4 text-primary shrink-0" />
+                        {b.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {b.ownerName || "Campus"} · {b.floors} Floors
+                      </div>
+                    </div>
+                    <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${badgeClass}`}>
+                      {b.riskClass}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 text-xs">
+                    <span className="text-muted-foreground text-[11px]">Vulnerability Score</span>
+                    <span
+                      className="font-mono font-bold text-sm"
+                      style={{ color: IVA_RISK_COLORS[b.riskClass] }}
+                    >
+                      {b.vulnerabilityScore}%
+                    </span>
+                  </div>
+
+                  <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Occupants: <strong className="text-foreground">{b.totalOccupants}</strong></span>
+                    {b.hasIncident && (
+                      <span className="inline-flex items-center gap-1 text-risk-red font-semibold animate-pulse">
+                        <AlertTriangle className="h-3 w-3" /> Active Incident
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. Floor Cards (Sorted automatically by Vulnerability Score - Descending) */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Floor Cards <span className="text-primary">(Sorted by Highest Vulnerability Score First)</span>
+            </span>
+            {selectedBuildingId !== "all" && (
+              <button
+                onClick={() => setSelectedFloorLevel("all")}
+                className="text-[10px] text-primary hover:underline"
+              >
+                Reset Floor Selection
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            {sortedFloors.map((f) => {
+              const isSelected = selectedFloorLevel === f.level;
+              const badgeClass = IVA_BADGE_CLASS[f.riskClass];
+              return (
+                <div
+                  key={`${f.buildingId}-${f.id}-${f.level}`}
+                  onClick={() => setSelectedFloorLevel(isSelected ? "all" : f.level)}
+                  className={`cursor-pointer rounded-lg border p-2.5 transition-all duration-200 ${
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-[0_0_12px_rgba(59,130,246,0.2)]"
+                      : "border-border/60 bg-secondary/30 hover:border-border hover:bg-secondary/60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-mono text-xs font-bold text-foreground">
+                      Floor {f.level}
+                    </span>
+                    <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${badgeClass}`}>
+                      {f.riskClass}
+                    </span>
+                  </div>
+
+                  <div className="text-[10px] text-muted-foreground truncate" title={f.name}>
+                    {f.name}
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between border-t border-border/30 pt-1.5 text-[11px]">
+                    <span className="text-muted-foreground">Vuln Score</span>
+                    <span
+                      className="font-mono font-bold"
+                      style={{ color: IVA_RISK_COLORS[f.riskClass] }}
+                    >
+                      {f.vulnerabilityScore}%
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 flex justify-between">
+                    <span>{f.occupancy} occupants</span>
+                    {f.isIncidentOnFloor && <span className="text-risk-red font-bold">🚨 Risk</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. OCCUPANCY HEATMAP SECTION (Positioned above Personnel Table) */}
+      <div className="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Occupancy Heatmap
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Live spatial distribution by floor and room/zone · Updates dynamically on Campus, Building, and Floor filter
+            </p>
+          </div>
+
+          {/* Color Coding Legend */}
+          <div className="flex items-center gap-3 text-xs font-medium">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+              <span className="text-muted-foreground">Green = Low</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-500"></span>
+              <span className="text-muted-foreground">Yellow = Medium</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+              <span className="text-muted-foreground">Orange = High</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+              <span className="text-muted-foreground">Red = Critical</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Zone Heatmap Grid */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          {heatmapZones.map((z) => (
+            <div
+              key={z.id}
+              className={`rounded-lg border ${z.borderClass} ${z.bgClass} p-3 transition-all duration-200 backdrop-blur-sm`}
+            >
+              <div className="flex items-start justify-between mb-1.5">
+                <span className="font-semibold text-xs text-foreground truncate pr-1" title={z.name}>
+                  {z.name}
+                </span>
+                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold ${z.colorClass} border ${z.borderClass}`}>
+                  {z.densityCategory}
+                </span>
+              </div>
+
+              <div className="text-[10px] text-muted-foreground mb-2">
+                {z.buildingName} · Floor {z.floorLevel}
+              </div>
+
+              <div className="flex items-baseline justify-between border-t border-border/40 pt-2">
+                <span className="text-xs text-muted-foreground font-medium">Occupant Count:</span>
+                <span className={`font-mono text-base font-black ${z.colorClass}`}>
+                  {z.occupancy} <span className="text-[10px] font-normal text-muted-foreground">people</span>
+                </span>
+              </div>
+
+              {z.specialNeedsCount > 0 && (
+                <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-amber-400">
+                  <AlertTriangle className="h-3 w-3" />
+                  {z.specialNeedsCount} special needs occupants
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Search */}

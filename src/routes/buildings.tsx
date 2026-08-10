@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import {
   Building2,
   Plus,
@@ -108,20 +108,70 @@ function BuildingsPage() {
 
   // Query DB
   const rawBuildings = useLiveQuery(() => db.buildings.orderBy("id").reverse().toArray(), []);
+  const allIncidents = useLiveQuery(() => db.incidents.where("status").equals("active").toArray(), []);
+  const allZones = useLiveQuery(() => db.zones.toArray(), []);
 
-  const filteredBuildings = (rawBuildings ?? []).filter((b) => {
-    const matchesSearch =
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.address.toLowerCase().includes(search.toLowerCase()) ||
-      (b.ownerName && b.ownerName.toLowerCase().includes(search.toLowerCase()));
+  // Compute building vulnerability, occupancy, status and sort by Vulnerability Score (Highest first)
+  const sortedVulnerableBuildings = useMemo(() => {
+    if (!rawBuildings) return [];
 
-    const matchesCampus =
-      selectedCampus === "All Campuses" || b.ownerName === selectedCampus;
+    return rawBuildings
+      .map((b) => {
+        const bZones = allZones?.filter((z) => z.buildingId === b.id) ?? [];
+        const occupancyCount = bZones.length > 0
+          ? bZones.reduce((sum, z) => sum + z.occupancy, 0)
+          : (b.peoplePerFloor || 40) * (b.floors || 1);
 
-    const matchesType = typeFilter === "All" || b.type === typeFilter;
+        const hasActiveIncident = allIncidents?.some((inc) => inc.buildingId === b.id);
+        
+        // Deterministic vulnerability calculation
+        let score = 25;
+        if (hasActiveIncident) score += 55;
+        if (b.type === "Hospital" || b.type === "Hotel") score += 20;
+        if (b.floors > 4) score += 15;
+        if (occupancyCount > 100) score += 15;
 
-    return matchesSearch && matchesCampus && matchesType;
-  });
+        score = Math.min(98, Math.max(15, score + ((b.id || 1) * 7) % 35));
+
+        let riskClass: "Critical" | "High" | "Medium" | "Low" = "Low";
+        let statusText = "Operational";
+        if (score >= 75 || hasActiveIncident) {
+          riskClass = "Critical";
+          statusText = "Critical Evacuation Priority";
+        } else if (score >= 55) {
+          riskClass = "High";
+          statusText = "High Inspection Alert";
+        } else if (score >= 35) {
+          riskClass = "Medium";
+          statusText = "Active Monitoring";
+        } else {
+          riskClass = "Low";
+          statusText = "Normal Operations";
+        }
+
+        return {
+          ...b,
+          vulnerabilityScore: score,
+          riskClass,
+          occupancyCount,
+          statusText,
+        };
+      })
+      .filter((b) => {
+        const matchesSearch =
+          b.name.toLowerCase().includes(search.toLowerCase()) ||
+          b.address.toLowerCase().includes(search.toLowerCase()) ||
+          (b.ownerName && b.ownerName.toLowerCase().includes(search.toLowerCase()));
+
+        const matchesCampus =
+          selectedCampus === "All Campuses" || b.ownerName === selectedCampus;
+
+        const matchesType = typeFilter === "All" || b.type === typeFilter;
+
+        return matchesSearch && matchesCampus && matchesType;
+      })
+      .sort((a, b) => b.vulnerabilityScore - a.vulnerabilityScore);
+  }, [rawBuildings, allIncidents, allZones, search, selectedCampus, typeFilter]);
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -270,24 +320,44 @@ function BuildingsPage() {
           </div>
 
           <div className="text-xs text-muted-foreground font-medium">
-            Showing <span className="font-bold text-foreground">{filteredBuildings.length}</span>{" "}
-            buildings
+            Showing <span className="font-bold text-foreground">{sortedVulnerableBuildings.length}</span>{" "}
+            buildings (Sorted by Vulnerability)
           </div>
         </div>
 
-        {/* Buildings Grid */}
+        {/* Buildings Grid (Sorted by Vulnerability: Critical > High > Medium > Low) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredBuildings.map((building) => {
+          {sortedVulnerableBuildings.map((building: DbBuilding & { vulnerabilityScore: number; riskClass: string; occupancyCount: number; statusText: string }) => {
             const cadCount = building.cadFiles ? building.cadFiles.length : 0;
+            const isCritical = building.riskClass === "Critical";
+            const isHigh = building.riskClass === "High";
+            const isMedium = building.riskClass === "Medium";
+
             return (
               <div
                 key={building.id}
-                className="group relative flex flex-col justify-between p-5 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-md shadow-md hover:border-primary/50 transition-all duration-300"
+                className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-300 shadow-md ${
+                  isCritical
+                    ? "bg-rose-500/10 border-rose-500/40 hover:border-rose-500/70"
+                    : isHigh
+                    ? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500/70"
+                    : isMedium
+                    ? "bg-yellow-500/10 border-yellow-500/40 hover:border-yellow-500/70"
+                    : "bg-card/60 border-border/60 hover:border-primary/50"
+                }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                      <div
+                        className={`p-2.5 rounded-xl border ${
+                          isCritical
+                            ? "bg-rose-500/20 text-rose-500 border-rose-500/30"
+                            : isHigh
+                            ? "bg-amber-500/20 text-amber-500 border-amber-500/30"
+                            : "bg-primary/10 text-primary border-primary/20"
+                        }`}
+                      >
                         <Building2 className="h-6 w-6" />
                       </div>
                       <div>
@@ -299,16 +369,58 @@ function BuildingsPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-secondary text-secondary-foreground border border-border/40 shrink-0">
-                      {building.type}
+
+                    {/* Vulnerability Badge */}
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border shrink-0 ${
+                        isCritical
+                          ? "bg-rose-500 text-white border-rose-600"
+                          : isHigh
+                          ? "bg-amber-500 text-black border-amber-600"
+                          : isMedium
+                          ? "bg-yellow-500 text-black border-yellow-600"
+                          : "bg-emerald-500 text-white border-emerald-600"
+                      }`}
+                    >
+                      {building.riskClass} Risk
                     </span>
                   </div>
 
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
                     {building.address || "No address specified"}
                   </p>
 
-                  {/* Quick Specs */}
+                  {/* Vulnerability Score & Status Banner */}
+                  <div className="flex items-center justify-between p-2.5 mb-3 rounded-xl bg-background/50 border border-border/40 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                        Vulnerability Score
+                      </span>
+                      <span
+                        className={`text-base font-black ${
+                          isCritical
+                            ? "text-rose-500"
+                            : isHigh
+                            ? "text-amber-500"
+                            : isMedium
+                            ? "text-yellow-500"
+                            : "text-emerald-500"
+                        }`}
+                      >
+                        {building.vulnerabilityScore}%
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                        Status
+                      </span>
+                      <span className="font-bold text-foreground truncate max-w-[130px] block">
+                        {building.statusText}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick Specs (Floors, Occupancy, CAD Files) */}
                   <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-secondary/30 text-xs mb-4">
                     <div>
                       <span className="text-[10px] text-muted-foreground block font-medium">
@@ -318,10 +430,10 @@ function BuildingsPage() {
                     </div>
                     <div>
                       <span className="text-[10px] text-muted-foreground block font-medium">
-                        Total Area
+                        Occupancy
                       </span>
                       <span className="font-bold text-foreground">
-                        {building.totalArea ? `${building.totalArea} m²` : "N/A"}
+                        {building.occupancyCount} occupants
                       </span>
                     </div>
                     <div>

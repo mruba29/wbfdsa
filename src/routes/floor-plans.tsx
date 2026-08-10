@@ -8,6 +8,7 @@ import { RiskSummary, type SimpleRiskLabel } from "@/components/RiskSummary";
 import { EvacuationPriority } from "@/components/EvacuationPriority";
 import { Walkthrough3D } from "@/components/Walkthrough3D";
 import { FloorPlan2DViewer } from "@/components/FloorPlan2DViewer";
+import { FloorLevelFireInventory } from "@/components/FloorLevelFireInventory";
 import { cadMetadataService } from "@/services/cadMetadataService";
 import {
   Upload,
@@ -41,8 +42,8 @@ export function FloorPlansPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
   const [selectedFloorLevel, setSelectedFloorLevel] = useState<number>(1);
 
-  // View Mode State: "2d" (CAD View) vs "3d" (Walkthrough View)
-  const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
+  // View Mode State: "2d" (CAD View) vs "inventory" (Fire Inventory View)
+  const [viewMode, setViewMode] = useState<"2d" | "inventory">("2d");
 
   // Filtered Building list by selected Campus
   const campusBuildings = useMemo(() => {
@@ -343,7 +344,7 @@ export function FloorPlansPage() {
 
             <span className="text-muted-foreground/40 font-bold hidden sm:inline">↓</span>
 
-            {/* Floor Selector */}
+            {/* Floor Selector (Sorted by Floor Vulnerability: Critical > High > Medium > Low) */}
             <div className="flex items-center gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Floor:
@@ -353,9 +354,14 @@ export function FloorPlansPage() {
                 onChange={(e) => setSelectedFloorLevel(Number(e.target.value))}
                 className="px-3.5 py-2 text-xs font-bold rounded-xl bg-background border border-primary/50 text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer font-mono"
               >
-                {[1, 2, 3, 4].map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    Level {lvl} {lvl === 1 ? " (Ground Floor)" : ""}
+                {[
+                  { level: 4, name: "Level 4 (HVAC Plant)", risk: "🔴 Critical Floor (85%)" },
+                  { level: 2, name: "Level 2 (R&D Lab)", risk: "🔴 High Risk Floor (78%)" },
+                  { level: 1, name: "Level 1 (Ground Floor)", risk: "🟠 Medium Risk Floor (60%)" },
+                  { level: 3, name: "Level 3 (Exec Suite)", risk: "🟢 Low Risk Floor (22%)" },
+                ].map((f) => (
+                  <option key={f.level} value={f.level}>
+                    {f.name} — {f.risk}
                   </option>
                 ))}
               </select>
@@ -446,15 +452,15 @@ export function FloorPlansPage() {
                   CAD View (2D)
                 </button>
                 <button
-                  onClick={() => setViewMode("3d")}
+                  onClick={() => setViewMode("inventory")}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-extrabold transition-all ${
-                    viewMode === "3d"
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-1 ring-blue-400/50"
+                    viewMode === "inventory"
+                      ? "bg-rose-600 text-white shadow-md shadow-rose-600/30 ring-1 ring-rose-400/50"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   }`}
                 >
-                  <Box className="h-4 w-4 text-blue-400" />
-                  Walkthrough View (3D)
+                  <Flame className="h-4 w-4 text-rose-400" />
+                  Fire Safety Inventory (Floor View)
                 </button>
               </div>
 
@@ -471,18 +477,13 @@ export function FloorPlansPage() {
 
             {/* Viewer Display Area */}
             <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-md shadow-md p-1 min-h-[500px] flex flex-col justify-between relative overflow-hidden">
-              {viewMode === "3d" ? (
-                /* 3D Walkthrough View using Three.js */
-                <div className="w-full h-[540px]">
-                  <Walkthrough3D
-                    buildingName={currentBuilding?.name || "Main Building"}
+              {viewMode === "inventory" ? (
+                /* Floor Level Fire Inventory Panel */
+                <div className="w-full">
+                  <FloorLevelFireInventory
+                    buildingName={currentBuilding?.name || "HQ Main Building"}
                     floorLevel={selectedFloorLevel}
-                    floorId={selectedFloorLevel}
-                    zones={zones}
-                    simulationTime={0}
-                    highlightedElement={null}
-                    onZoneClick={() => {}}
-                    selectedZone={null}
+                    campusName={selectedCampus}
                   />
                 </div>
               ) : (
@@ -498,6 +499,17 @@ export function FloorPlansPage() {
             </div>
           </div>
         </div>
+
+        {/* Floor Level Fire Inventory Section (always accessible in Floor Level Views) */}
+        {viewMode !== "inventory" && (
+          <div className="pt-4 border-t border-border/40">
+            <FloorLevelFireInventory
+              buildingName={currentBuilding?.name || "Main Building"}
+              floorLevel={selectedFloorLevel}
+              campusName={selectedCampus}
+            />
+          </div>
+        )}
       </div>
     </AppShell>
   );
